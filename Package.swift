@@ -12,10 +12,19 @@ let package = Package(
     name: "FloatShelf",
     platforms: [.macOS(.v14)],
     products: [
+        .executable(name: "FloatShelf", targets: ["FloatShelf"]),
         .library(name: "FloatShelfCore", targets: ["FloatShelfCore"]),
     ],
     targets: [
         .target(name: "FloatShelfCore"),
+        .executableTarget(
+            name: "FloatShelf",
+            dependencies: ["FloatShelfCore"],
+            linkerSettings: [
+                .linkedFramework("AppKit"),
+                .linkedFramework("Carbon"),
+            ]
+        ),
         .testTarget(
             name: "FloatShelfCoreTests",
             dependencies: ["FloatShelfCore"],
