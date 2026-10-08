@@ -1,6 +1,8 @@
 # FloatShelf — 环境检测、技术调研与架构规划
 
-> 状态：规划稿，等待批准后实施。本文所有"已验证"均指在本机（WeijiadeMacBook-Pro）实际执行过的命令结果；"未验证"项须在 Phase 0 用真实 GUI 操作确认。
+> 状态：规划已批准（2026-10-08）。本文所有"已验证"均指在本机（WeijiadeMacBook-Pro）实际执行过的命令结果；"未验证 / 待测试"项须由用户在 Phase 0 用真实 GUI 操作确认。
+>
+> **修订（Phase 0 实施时）**：§2.1 改为把 changeCount 作为辅助信号并加入埋点；§2.3 按 Apple 官方文档重写拖拽操作语义与修饰键说明，删除了原先"Option=copy、Command=generic、Control=link 且等同 Finder 原生语义"的断言；Phase 0 拖出改为"先只提供复制"。
 
 ---
 
@@ -54,11 +56,13 @@
 | (b) 只监听的 `CGEventTap`（`.cgSessionEventTap` + `.listenOnly`，mask = leftMouseDragged/Up） | Input Monitoring（`CGPreflightListenEventAccess` / `CGRequestListenEventAccess`）；ad-hoc 签名下 TCC 授权会随重建失效，且有报告称请求不一定把应用加入列表 | 能看到所有会话级鼠标事件 | **备选**。仅当 (a) 在 macOS 27 上收不到拖拽期间事件时启用 |
 | (c) 无权限兜底：低频轮询 `NSEvent.pressedMouseButtons` + `NSPasteboard(name: .drag).changeCount`，检测到"左键按下且拖拽板变化"后，只在按键按住期间短时高频采样 `NSEvent.mouseLocation` | 无 | 不依赖事件投递 | **兜底**。有轮询成本（空闲时 ~4–5 Hz 检查，拖拽期间 ~60 Hz，松开即停） |
 
-**区分"拖文件"与"拖窗口/选择文字"**：全局 `leftMouseDragged` 也会在拖窗口时触发，且 `.drag` 拖拽板会残留上一次的文件内容。已知规避（开发者反馈并经 DTS 确认为系统行为）：拖窗口不会让 `NSPasteboard(name: .drag).changeCount` 增加。因此判定规则为：
-- `leftMouseDown`（或第一次 `leftMouseDragged`）记录 changeCount 基线；
-- 拖动过程中 changeCount ≠ 基线 **且** 拖拽板类型包含 `.fileURL`（P1 再扩展到 URL/文本/图片）→ 进入 "文件拖拽中" 状态；
-- `leftMouseUp` → 结束，重置手势检测。
-
+**区分"拖文件"与"拖窗口/选择文字"（多信号组合，changeCount 只是辅助）**：全局 `leftMouseDragged` 在拖窗口、框选、选择文字时同样会触发，而 `.drag` 拖拽板可能残留上一次拖拽的文件 URL。有开发者报告（Stack Overflow 回答称已与 Apple DTS 沟通，另有开源实现采用同样做法）说拖窗口不会让 `NSPasteboard(name: .drag).changeCount` 增加。**这不是 Apple 文档承诺的行为，本机未验证**，因此 Phase 0 只把它当作辅助信号，并加埋点收集证据：
+- 信号 1：按键状态，来自当前引擎的 mouseDown/Up；触发时再用 `NSEvent.pressedMouseButtons` 复核左键确实按着；
+- 信号 2：`.drag` 拖拽板 changeCount 与"上一次按键结束时"的基线比较。基线取上一次松开时的值，避免 mouseDown 事件异步延迟送达导致漏判；FloatShelf 自己拖出后也会重置基线；
+- 信号 3：拖拽板类型是否包含 `public.file-url`；
+- 信号 4：摇晃手势本身（含竖直位移比例过滤）。
+- 分类（Core 中的 `DragSessionTracker`，有单元测试）：`confirmedFileDrag`（changeCount 变化且有 fileURL）/ `staleFileURL`（有 fileURL 但 changeCount 未变，疑似残留）/ `nonFileDrag`。默认只有 `confirmedFileDrag` 会打开 Shelf；菜单可以关闭"仅在 changeCount 变化时触发"，用于对比实验。
+- 埋点：每次带拖动的按键在松开时输出一行 `SUMMARY`，内容包括 changeCount 的 idle/press/end 值、首次观察到变化是第几个拖动事件、距按下多少毫秒、类型中是否有 fileURL、摇晃是否触发或被拒绝。用户实测拖文件、拖窗口、选择文字后，这些日志就是 changeCount 时序和可靠性的证据。
 **摇晃检测（纯算法，放在可测试 Core 中）**：
 - 输入：带时间戳的全局坐标样本（AppKit 点坐标，与 Retina 缩放无关）。
 - 计算 x 方向位移，忽略小于 `minSegment`（默认 ~30pt）的抖动；方向反转且相邻段幅度达标则计为一次"摆动"。
@@ -80,20 +84,28 @@
 - 显示动画：仅用 `alphaValue`/`frame` 的短动画（≤150ms），窗口一出现就能接收拖放，不等待动画结束。
 - 不使用 SwiftUI `onDrop/onDrag` 作为拖放主体：drop 目标是 AppKit `NSView`（实现 `NSDraggingDestination`），SwiftUI 仅用于内容展示（`NSHostingView` 嵌入）。
 
-### 2.3 拖出（Drag Out）
+### 2.3 拖出（Drag Out）——按 Apple 官方文档的操作语义
 
-- 拖出视图实现 `NSDraggingSource`，`mouseDragged:` 中调用 `beginDraggingSession(with: [NSDraggingItem], event:, source:)`；每个 `NSDraggingItem` 的 pasteboard writer 直接用 `NSURL`（实现了 `NSPasteboardWriting`，写出 `public.file-url`），拖全部时多个 item 一次性开始会话。
-- `draggingSession(_:sourceOperationMaskFor:)`：`.outsideApplication` 返回 `[.copy, .move, .link, .generic]`（**不含 `.delete`**）；`.withinApplication` 返回 `[.copy, .generic]`（Shelf 之间复制引用）。
-- 修饰键：系统按 Apple 文档过滤源掩码——Option → `.copy`，Command → `.generic`，Control → `.link`；不实现 `ignoreModifierKeysWhileDragging`，因此保留 Finder 原生语义（同卷默认移动、跨卷默认复制，Option 强制复制，带 "+" 光标）。
+**Apple 文档原文要点（2026-10-08 查阅 developer.apple.com）**：
+- `NSDraggingSource.draggingSession(_:sourceOperationMaskFor:)`："Declares the types of operations the source allows to be performed." 源只声明**允许**哪些操作，可按 `NSDraggingContext`（`.withinApplication` / `.outsideApplication`）分别返回。
+- `NSDraggingInfo.draggingSourceOperationMask`："If the user holds down a modifier key during the dragging session and the dragging source allows modifier keys to affect the drag operation, the system combines the dragging source operation mask with the value that corresponds to the modifier key. You control whether the modifier keys can affect the drag operation using the dragging source's `ignoreModifierKeys(for:)` method." 也就是说，现行文档**没有给出**修饰键与操作的具体对应表。
+- `NSDraggingDestination.draggingEntered(_:)`：目的地必须返回**一个**操作，依据是"源允许的操作"（`draggingSourceOperationMask`）与"目的地自身支持的操作和类型"的交集。**最终操作由目的地（Finder、浏览器等）决定**，再通过 `draggingSession(_:endedAt:operation:)` 告知源。
+- 归档文档《Drag and Drop Programming Topics › Dragging Sources》（legacy，基于旧的 `draggedImage:` API）有一张表："Control → Link、Option → Copy、Command → Generic"，说明为"source's operation mask is filtered to only contain the operations given"。同一文档还写道：源若支持 Move/Delete，需要在拖拽结束回调里"remove the dragged data from the source"。
+- **结论**：上述映射只出现在归档文档中，不能当作现代 `NSDraggingSession` 在 macOS 27 上的保证。自定义拖拽源也**不会自动**表现得和 Finder 自己发起的拖拽一样："同卷默认移动、跨卷默认复制"是 Finder 作为拖拽源和目的地时的行为，不是 API 保证。FloatShelf 作为源时，Finder 在不同掩码和修饰键下选择什么操作，**一律待用户实测**；日志会记录提供的掩码、结束时的修饰键和目的地实际返回的操作。
+
+**Phase 0 实现（先复制，后移动）**：
+- 拖出视图在 `mouseDragged:` 中调用 `beginDraggingSession(with:event:source:)`；每个 `NSDraggingItem(pasteboardWriter: url as NSURL)`（NSURL 实现了 `NSPasteboardWriting`）。单项拖动和"拖动全部"共用同一个源。
+- `.outsideApplication`：默认**只返回 `[.copy]`**。菜单里打开"拖出时允许移动（实验）"后返回 `[.copy, .move]`。永远不含 `.delete`。是否需要 `.generic`、`.link`，待实测后再定。
+- `.withinApplication`：返回 `[]`，即拖回 FloatShelf 自身不构成操作。
+- 不重写 `ignoreModifierKeys(for:)`（默认允许修饰键参与）。Option、Command、Control 的实际效果以日志为准。
 - `draggingSession(_:endedAt:operation:)`：
-  - `.none`（取消/被拒）→ Shelf 内容保持不变；
-  - `.move` → 由 Finder 执行实际移动；Shelf **仅在源 URL 已不存在时**才移除或更新该项（`FileManager.fileExists` 检查），不自行删除任何文件；
-  - 其它 → 保留条目。
-- 不模拟按键、不写系统剪贴板来伪造拖拽。
-- 同名文件：模型以"标准化路径 + 文件资源标识（`URLResourceKey.fileResourceIdentifierKey`）"去重，而不是文件名；UI 显示文件名，tooltip/副标题显示所在目录区分同名。
-- 被 Finder 移动后的追踪（可选增强）：保存 bookmark data（非安全作用域，非沙盒应用无需 security-scoped bookmark），`endedAt` 中可通过 bookmark 解析新位置更新引用。
-- **注意**：把 Shelf 项拖到废纸篓，Finder 会把**真实文件**移入废纸篓——这是系统语义，会在 README 中明确说明。
-
+  - `[]`（Esc 取消，或放到不接受的位置）→ Shelf 不变；
+  - `.copy` → Shelf 不变；
+  - `.move` → 文件由目的地移动；Shelf **仅当 operation == .move 且原路径已不存在**时才移除该引用（`ShelfStore.shouldRemoveAfterDragOut`，有单元测试）；
+  - **FloatShelf 在任何情况下都不会自己删除或移动源文件。**
+- 不模拟按键、不写系统剪贴板。
+- 同名文件：以标准化路径去重（不解析符号链接）。同名项在 UI 中追加父目录名区分；父目录名也相同时显示完整父路径。`fileResourceIdentifierKey` 与 bookmark 追踪推迟到 P1 评估。
+- **注意**：如果打开了"允许移动"并把项目拖到废纸篓，结果由 Finder 决定（可能把真实文件移入废纸篓）。Phase 0 默认只提供复制，此场景待测，并会在 README 中说明。
 ### 2.4 应用形态与签名
 
 - 非沙盒、ad-hoc 签名（`codesign --force --sign - --identifier com.weijiaren.FloatShelf`）。沙盒会限制读取他人拖入文件的长期访问，且对本需求无收益。
@@ -135,7 +147,7 @@ FloatShelf/
 │   │   ├── Geometry/ShelfPositioning.swift    # 多屏定位/夹紧/翻转纯函数
 │   │   ├── Model/ShelfItem.swift              # 文件引用（URL、bookmark、resourceID、显示名）
 │   │   ├── Model/ShelfStore.swift             # 增删、去重、排序、移动后校验
-│   │   ├── Drag/DragSessionTracker.swift      # changeCount 基线 + 状态机（idle/pressed/fileDrag/ended）
+│   │   ├── Drag/DragSessionTracker.swift      # 多信号分类：changeCount 基线 + fileURL 类型（confirmed/stale/nonFile）
 │   │   └── Settings/SettingsModel.swift       # Codable 设置 + UserDefaults 键
 │   └── FloatShelf/                   # 可执行 target（AppKit + SwiftUI）
 │       ├── App/main.swift, AppDelegate.swift, StatusItemController.swift
@@ -182,7 +194,7 @@ FloatShelf/
 - 自动：`swift build`、Core 单元测试（摇晃算法、状态机）。
 - **手工验收（需 Gerry 亲自操作）**：
   - A：Finder 拖住文件 → 摇晃 → Shelf 出现 → Finder 拖拽未中断 → 直接放入 Shelf 成功；
-  - B：Finder → Shelf → 拖到 Finder 另一目录（默认/Option）→ 结果符合 Finder 语义，取消时条目保留。
+  - B：Finder → Shelf → 拖到 Finder 另一目录：先验证**复制**（默认只提供 copy），再验证跨应用（浏览器上传区），最后才在实验开关下评估移动；取消时条目和源文件都保留。全部使用 `scripts/make-test-files.sh` 生成的专用测试文件，并用 `scripts/verify-test-files.sh` 校验。
 - 若 A 失败：依次切换到轮询引擎 / CGEventTap 引擎，记录结论，向用户报告平台限制。
 - 提交：`feat(poc): verify shake-to-open during Finder drag and native drag out`
 
@@ -226,7 +238,7 @@ FloatShelf/
 
 1. **最高风险**：macOS 27 上全局鼠标监听在 Finder 拖拽会话期间能否持续收到 `leftMouseDragged`（未实测）。有 2 个备选引擎。
 2. 拖拽中新出现窗口能否立即成为 drop 目标（行业产品证明可行，本机未实测）；若光标不在窗口内，需用户稍微移动。
-3. `.drag` 拖拽板 changeCount 区分窗口拖动属于非文档化行为，可能随系统变化；状态机会结合 `.fileURL` 类型与按下时基线做判断。
+3. 用 `.drag` 拖拽板 changeCount 区分窗口拖动属于非文档化行为，可能随系统变化。它只作辅助信号，与按键状态、fileURL 类型、摇晃一起判断，并由 Phase 0 埋点实测。
 4. 文件被拖出移动后的引用失效：靠 `endedAt` 存在性检查 + bookmark 解析处理。
 5. 拖到废纸篓会真正删除（移入废纸篓）原文件——系统语义，需文档提醒。
 6. ad-hoc 签名使 TCC 授权随重建失效（仅影响可选的 CGEventTap 引擎）。
