@@ -1,0 +1,13 @@
+# SwiftPM / build outputs
+.build/
+.swiftpm/
+build/
+dist/
+
+# Local test fixtures, scratch and run logs (never commit)
+TestFixtures/
+.scratch/
+logs/
+
+# macOS
+.DS_Store
