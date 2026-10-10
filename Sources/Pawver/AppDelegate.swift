@@ -95,6 +95,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     var hotkeyStatusText: String { hotkey.menuStatusText }
 
+    private var settingsWindow: SettingsWindowController?
+
+    func openSettings() {
+        if settingsWindow == nil { settingsWindow = SettingsWindowController(app: self) }
+        settingsWindow?.show()
+    }
+
+    var isMenuBarIconVisible: Bool { statusController?.isIconVisible ?? true }
+
+    func setMenuBarIconVisible(_ visible: Bool, reason: String) {
+        statusController?.setVisible(visible, reason: reason)
+    }
+
     func reregisterHotkey(reason: String) {
         hotkey.register(reason: reason)
     }
