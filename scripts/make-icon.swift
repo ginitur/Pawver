@@ -1,6 +1,6 @@
 // Crops the rounded-square app icon out of Resources/Brand/pawver-source.png
-// (excluding the wordmark below it), masks the corners transparent and writes
-// a 1024x1024 master PNG laid out on the macOS icon grid (824 px tile, 100 px margin).
+// (excluding the wordmark below it), crops tightly INSIDE the tile edge (so the
+// light rim, grey edge and drop shadow are gone), scales it to fill 1024x1024 and masks a 22.37% rounded rect.
 // Usage: swift scripts/make-icon.swift <source.png> <out-1024.png>
 import CoreGraphics
 import Foundation
@@ -86,22 +86,68 @@ let d = edge(from: ox, step: 1, count: side / 5) { ($0, oy + ($0 - ox)) } - ox
 let radius = Double(d) / (1 - 1 / 2.0.squareRoot())
 print(String(format: "make-icon: source %dx%d bg=(%.0f,%.0f,%.0f) coarse x=%d..%d y=%d..%d; tile x=%d..%d y=%d..%d (%dx%d) square=%d at (%d,%d) diagonalInset=%d radius≈%.1f (%.1f%% of side)",
              W, H, bg[0], bg[1], bg[2], left, right, top, bottom, L, R, T, B, w, h, side, ox, oy, d, radius, radius / Double(side) * 100))
-guard let crop = img.cropping(to: CGRect(x: ox, y: oy, width: side, height: side)) else { fail("crop") }
+// Crop inside the tile: skip the rim/shadow by ~2.5% of the side on every edge.
+let insetPx = Int((Double(side) * 0.025).rounded())
+let cs = side - 2 * insetPx
+let cx0 = ox + insetPx, cy0 = oy + insetPx
+// The source's own rounded corner must stay outside our mask corner, otherwise source
+// background would show in the corners: compare the diagonal insets in crop pixels.
+let S = 1024
+let maskRadius = 0.2237 * Double(S)
+let ours = maskRadius * Double(cs) / Double(S) * (1 - 1 / 2.0.squareRoot())
+let theirs = radius * (1 - 1 / 2.0.squareRoot()) - Double(insetPx)
+print(String(format: "make-icon: inner crop %d px at (%d,%d) (inset %d px); corner diagonal inset ours=%.1f source=%.1f", cs, cx0, cy0, insetPx, ours, theirs))
+if ours < theirs + 4 { fail("mask corner would expose the source corner; increase inset") }
+guard let crop = img.cropping(to: CGRect(x: cx0, y: cy0, width: cs, height: cs)) else { fail("crop") }
 
-// Master: 1024 canvas, 824 tile centred (Apple macOS icon grid), corners masked.
-let S = 1024, tile = 824.0, m = (1024.0 - tile) / 2
-guard let out = CGContext(data: nil, width: S, height: S, bitsPerComponent: 8, bytesPerRow: 0, space: rgb,
+// Master: artwork fills the whole 1024 canvas; transparent corners; no shadow/outline.
+guard let out = CGContext(data: nil, width: S, height: S, bitsPerComponent: 8, bytesPerRow: S * 4, space: rgb,
                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { fail("out ctx") }
 out.interpolationQuality = .high
-let rect = CGRect(x: m, y: m, width: tile, height: tile)
-// Inset by ~1.5 px so the soft halo around the original tile edge is cut off.
-let inset = 2.0 * tile / Double(side)
-let r = radius * tile / Double(side) - inset
-out.addPath(CGPath(roundedRect: rect.insetBy(dx: inset, dy: inset), cornerWidth: r, cornerHeight: r, transform: nil))
+let rect = CGRect(x: 0, y: 0, width: S, height: S)
+let maskPath = CGPath(roundedRect: rect, cornerWidth: maskRadius, cornerHeight: maskRadius, transform: nil)
+out.addPath(maskPath)
 out.clip()
 out.draw(crop, in: rect)
-guard let result = out.makeImage(),
-      let dest = CGImageDestinationCreateWithURL(URL(fileURLWithPath: args[2]) as CFURL, UTType.png.identifier as CFString, 1, nil)
+guard let result = out.makeImage() else { fail("image") }
+
+// Edge check: walk the mask outline, sample 2 px and 6 px inside it, compare with the
+// cream interior colour. A grey ring shows up as low luminance/low warmth all round.
+let op = out.data!.assumingMemoryBound(to: UInt8.self)
+func sample(_ x: Double, _ y: Double) -> (Double, Double, Double, Double) {
+    let xi = min(S - 1, max(0, Int(x))), yi = min(S - 1, max(0, Int(y)))
+    let i = (yi * S + xi) * 4
+    let a = Double(op[i + 3]); guard a > 0 else { return (0, 0, 0, 0) }
+    return (Double(op[i]) * 255 / a, Double(op[i + 1]) * 255 / a, Double(op[i + 2]) * 255 / a, a)
+}
+let R0 = maskRadius, Sd = Double(S)
+var pts: [(Double, Double, Double, Double)] = []   // x, y, inward normal
+for k in stride(from: R0, through: Sd - R0, by: 4) {
+    pts += [(k, 0, 0, 1), (k, Sd, 0, -1), (0, k, 1, 0), (Sd, k, -1, 0)]
+}
+for (ccx, ccy, sx, sy) in [(R0, R0, -1.0, -1.0), (Sd - R0, R0, 1, -1), (R0, Sd - R0, -1, 1), (Sd - R0, Sd - R0, 1, 1)] {
+    for deg in stride(from: 0.0, through: 90.0, by: 3) {
+        let t = deg * .pi / 180, nx = sx * cos(t), ny = sy * sin(t)
+        pts.append((ccx + nx * R0, ccy + ny * R0, -nx, -ny))
+    }
+}
+for depth in [2.0, 6.0] {
+    var lums: [Double] = [], warm: [Double] = [], dark = 0
+    for (x, y, nx, ny) in pts {
+        let (r, g, b, a) = sample(x + nx * depth, y + ny * depth)
+        guard a > 128 else { continue }
+        let l = 0.299 * r + 0.587 * g + 0.114 * b
+        lums.append(l); warm.append(r - b)
+        if l < 200 { dark += 1 }
+    }
+    lums.sort()
+    print(String(format: "make-icon: edge check %.0f px inside: %d samples, luminance min=%.0f p5=%.0f median=%.0f, mean R-B warmth=%.1f, samples <200 lum=%d",
+                 depth, lums.count, lums.first ?? -1, lums[lums.count / 20], lums[lums.count / 2], warm.reduce(0, +) / Double(warm.count), dark))
+}
+let (ir, ig, ib, _) = sample(150, 300)
+print(String(format: "make-icon: interior reference (150,300) = (%.0f,%.0f,%.0f)", ir, ig, ib))
+
+guard let dest = CGImageDestinationCreateWithURL(URL(fileURLWithPath: args[2]) as CFURL, UTType.png.identifier as CFString, 1, nil)
 else { fail("dest") }
 CGImageDestinationAddImage(dest, result, nil)
 guard CGImageDestinationFinalize(dest) else { fail("write") }
