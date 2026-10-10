@@ -5,12 +5,12 @@ enum LogCategory: String, CaseIterable {
     case app, drag, shake, shelf, dropin, dragout, hotkey, permissions
 }
 
-/// Diagnostics: os.Logger (subsystem com.weijiaren.FloatShelf) plus an
+/// Diagnostics: os.Logger (subsystem com.weijiaren.Pawver) plus an
 /// optional plain-text mirror file, enabled only when the environment variable
-/// FLOATSHELF_LOG_DIR is set (scripts/run.sh points it at <project>/logs).
+/// PAWVER_LOG_DIR is set (scripts/run.sh points it at <project>/logs).
 @MainActor
 enum Diag {
-    static let subsystem = "com.weijiaren.FloatShelf"
+    static let subsystem = "com.weijiaren.Pawver"
     static var verbose = false
 
     private static var loggers: [LogCategory: Logger] = {
@@ -27,13 +27,13 @@ enum Diag {
     }()
 
     static func configureFileMirror() {
-        guard let dir = ProcessInfo.processInfo.environment["FLOATSHELF_LOG_DIR"], !dir.isEmpty else { return }
+        guard let dir = ProcessInfo.processInfo.environment["PAWVER_LOG_DIR"], !dir.isEmpty else { return }
         let dirURL = URL(fileURLWithPath: dir, isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
             let f = DateFormatter()
             f.dateFormat = "yyyyMMdd-HHmmss"
-            let url = dirURL.appendingPathComponent("floatshelf-\(f.string(from: Date())).log")
+            let url = dirURL.appendingPathComponent("pawver-\(f.string(from: Date())).log")
             FileManager.default.createFile(atPath: url.path, contents: nil)
             fileHandle = try FileHandle(forWritingTo: url)
             logFileURL = url

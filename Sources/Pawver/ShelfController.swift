@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 /// Owns the single Phase 0 shelf: panel, drop handling, item list.
 @MainActor
@@ -237,7 +237,7 @@ final class ShelfController: NSObject, ShelfDropHandling {
         let result = store.add(urls)
         refresh()
         lastLogged[info.draggingSequenceNumber] = nil
-        Diag.notice(.dropin, "performDragOperation seq=\(info.draggingSequenceNumber): stored \(result.added.count) reference(s), \(result.duplicates.count) duplicate(s), \(result.rejected.count) rejected; shelf now has \(store.count). Files were NOT copied or moved by FloatShelf. added=\(result.added.map(\.key))")
+        Diag.notice(.dropin, "performDragOperation seq=\(info.draggingSequenceNumber): stored \(result.added.count) reference(s), \(result.duplicates.count) duplicate(s), \(result.rejected.count) rejected; shelf now has \(store.count). Files were NOT copied or moved by Pawver. added=\(result.added.map(\.key))")
         return true
     }
 

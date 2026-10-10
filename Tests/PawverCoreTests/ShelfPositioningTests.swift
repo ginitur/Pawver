@@ -1,6 +1,6 @@
 import CoreGraphics
 import Testing
-@testable import FloatShelfCore
+@testable import PawverCore
 
 // Mirrors the real setup: built-in Retina (main, 2x, menu bar 33pt) and a
 // 1080p external screen (1x) placed left of it (negative x) or above it.
@@ -20,7 +20,7 @@ private let externalBelowWithDock = ScreenGeometry(
     frame: CGRect(x: 0, y: -1080, width: 1920, height: 1080),
     visibleFrame: CGRect(x: 0, y: -1010, width: 1920, height: 1010),
     scale: 1)
-// Actual layout logged by FloatShelf on the development Mac (2026-10-08):
+// Actual layout logged by Pawver on the development Mac (2026-10-08):
 // external MT524 1080p to the RIGHT of the built-in screen, offset 98pt down.
 private let externalRightActual = ScreenGeometry(
     frame: CGRect(x: 1512, y: -98, width: 1920, height: 1080),

@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 /// Base view that starts a native drag-out session (via DragOutController)
 /// once the pointer moves a few points after mouse-down.

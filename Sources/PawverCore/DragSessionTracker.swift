@@ -51,7 +51,7 @@ public struct DragSessionTracker: Sendable {
 
     public var classification: DragClassification { current?.classification ?? .idle }
 
-    /// Call after FloatShelf's own drag-out session so that our own write to
+    /// Call after Pawver's own drag-out session so that our own write to
     /// the drag pasteboard is not mistaken for a new external file drag.
     public mutating func resetBaseline(_ changeCount: Int) {
         idleBaseline = changeCount

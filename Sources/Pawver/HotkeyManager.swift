@@ -16,7 +16,7 @@ import Carbon.HIToolbox
 ///  - registration can be repeated (menu item, wake from sleep, session
 ///    re-activation) and its status is shown in the menu;
 ///  - if — and only if — Accessibility is ALREADY granted, an NSEvent global
-///    keyDown monitor is added as a second path (never requested by FloatShelf).
+///    keyDown monitor is added as a second path (never requested by Pawver).
 @MainActor
 final class HotkeyManager {
     var onPress: (() -> Void)?
@@ -88,7 +88,7 @@ final class HotkeyManager {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         keyMonitorActive = false
         guard AXIsProcessTrusted() else {
-            Diag.info(.hotkey, "NSEvent keyDown fallback not installed (Accessibility not granted; FloatShelf does not request it)")
+            Diag.info(.hotkey, "NSEvent keyDown fallback not installed (Accessibility not granted; Pawver does not request it)")
             return
         }
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in

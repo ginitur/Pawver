@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Diag.verbose = settings.verbose
         Diag.configureFileMirror()
         let info = Bundle.main.infoDictionary ?? [:]
-        Diag.notice(.app, "FloatShelf starting: version=\(info["CFBundleShortVersionString"] ?? "?") build=\(info["CFBundleVersion"] ?? "?") pid=\(ProcessInfo.processInfo.processIdentifier) bundle=\(Bundle.main.bundlePath) bundleID=\(Bundle.main.bundleIdentifier ?? "nil") macOS=\(ProcessInfo.processInfo.operatingSystemVersionString) logFile=\(Diag.logFileURL?.path ?? "none")")
+        Diag.notice(.app, "Pawver starting: version=\(info["CFBundleShortVersionString"] ?? "?") build=\(info["CFBundleVersion"] ?? "?") pid=\(ProcessInfo.processInfo.processIdentifier) bundle=\(Bundle.main.bundlePath) bundleID=\(Bundle.main.bundleIdentifier ?? "nil") macOS=\(ProcessInfo.processInfo.operatingSystemVersionString) logFile=\(Diag.logFileURL?.path ?? "none")")
         Diag.info(.permissions, "startup permission snapshot (read-only, nothing requested): \(PermissionProbe.summary())")
 
         shelf = ShelfController()
@@ -72,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         engine?.stop()
         hotkey.unregister()
-        Diag.notice(.app, "FloatShelf terminating")
+        Diag.notice(.app, "Pawver terminating")
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }

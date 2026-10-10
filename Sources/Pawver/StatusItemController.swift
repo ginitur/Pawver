@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 /// Menu bar item. Quit is always the last, clearly labelled entry.
 @MainActor
@@ -12,13 +12,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.app = app
         super.init()
         if let button = statusItem.button {
-            if let image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: "FloatShelf") {
+            if let image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: "Pawver") {
                 image.isTemplate = true
                 button.image = image
             } else {
                 button.title = "FS"
             }
-            button.toolTip = "FloatShelf"
+            button.toolTip = "Pawver"
         }
         menu.delegate = self
         menu.autoenablesItems = false
@@ -78,7 +78,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        let quit = item("退出 FloatShelf", #selector(quit), key: "q")
+        let quit = item("退出 Pawver", #selector(quit), key: "q")
         menu.addItem(quit)
     }
 
@@ -117,12 +117,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let summary = PermissionProbe.summary()
         Diag.info(.permissions, "user opened permission status: \(summary)")
         let alert = NSAlert()
-        alert.messageText = "FloatShelf 权限状态"
+        alert.messageText = "Pawver 权限状态"
         alert.informativeText = """
         辅助功能（Accessibility）：\(PermissionProbe.accessibilityTrusted ? "已授权" : "未授权")
         输入监控（Input Monitoring）：\(PermissionProbe.inputMonitoringGranted ? "已授权" : "未授权")
 
-        Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要这两项权限，FloatShelf 也不会主动请求。若摇晃在拖拽中没有反应，请先查看日志中是否出现 “global monitor received its first leftMouseDragged”，再尝试切换到“轮询”引擎对比。
+        Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要这两项权限，Pawver 也不会主动请求。若摇晃在拖拽中没有反应，请先查看日志中是否出现 “global monitor received its first leftMouseDragged”，再尝试切换到“轮询”引擎对比。
         """
         NSApp.activate()
         alert.runModal()

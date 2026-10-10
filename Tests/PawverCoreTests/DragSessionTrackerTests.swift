@@ -1,5 +1,5 @@
 import Testing
-@testable import FloatShelfCore
+@testable import PawverCore
 
 private let fileTypes = ["public.file-url", "NSFilenamesPboardType"]
 private let textTypes = ["public.utf8-plain-text"]

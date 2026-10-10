@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the FloatShelfCore unit tests (Swift Testing) under Command Line Tools.
+# Runs the PawverCore unit tests (Swift Testing) under Command Line Tools.
 # The explicit macro plugin path works around intermittent
 # "plugin for module 'TestingMacros' not found" errors (docs/PLAN.md §1.1).
 set -euo pipefail

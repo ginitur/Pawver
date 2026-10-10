@@ -1,4 +1,4 @@
-# FloatShelf — 环境检测、技术调研与架构规划
+# Pawver — 环境检测、技术调研与架构规划
 
 > 状态：规划已批准（2026-10-08）。本文所有"已验证"均指在本机（WeijiadeMacBook-Pro）实际执行过的命令结果；"未验证 / 待测试"项须由用户在 Phase 0 用真实 GUI 操作确认。
 >
@@ -36,7 +36,7 @@
 3. 已验证稳定的两种方式（都配合第 1 条的 rpath）：
    - **首选**：`swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing`。清空 `.build` 后连续 4 次全部通过。
    - 备选：`swift test --build-system native -Xswiftc -F<Frameworks> -Xlinker -F<Frameworks>`。2 次全部通过，但 native 已标记 deprecated。
-4. `scripts/test.sh` 封装首选命令。如果以后工具链变化导致失效，退路是写一个**不依赖宏**、自己做断言的测试可执行 target（`FloatShelfCoreChecks`）。
+4. `scripts/test.sh` 封装首选命令。如果以后工具链变化导致失效，退路是写一个**不依赖宏**、自己做断言的测试可执行 target（`PawverCoreChecks`）。
 
 ### 1.2 签名实测
 
@@ -58,7 +58,7 @@
 
 **区分"拖文件"与"拖窗口/选择文字"（多信号组合，changeCount 只是辅助）**：全局 `leftMouseDragged` 在拖窗口、框选、选择文字时同样会触发，而 `.drag` 拖拽板可能残留上一次拖拽的文件 URL。有开发者报告（Stack Overflow 回答称已与 Apple DTS 沟通，另有开源实现采用同样做法）说拖窗口不会让 `NSPasteboard(name: .drag).changeCount` 增加。**这不是 Apple 文档承诺的行为，本机未验证**，因此 Phase 0 只把它当作辅助信号，并加埋点收集证据：
 - 信号 1：按键状态，来自当前引擎的 mouseDown/Up；触发时再用 `NSEvent.pressedMouseButtons` 复核左键确实按着；
-- 信号 2：`.drag` 拖拽板 changeCount 与"上一次按键结束时"的基线比较。基线取上一次松开时的值，避免 mouseDown 事件异步延迟送达导致漏判；FloatShelf 自己拖出后也会重置基线；
+- 信号 2：`.drag` 拖拽板 changeCount 与"上一次按键结束时"的基线比较。基线取上一次松开时的值，避免 mouseDown 事件异步延迟送达导致漏判；Pawver 自己拖出后也会重置基线；
 - 信号 3：拖拽板类型是否包含 `public.file-url`；
 - 信号 4：摇晃手势本身（含竖直位移比例过滤）。
 - 分类（Core 中的 `DragSessionTracker`，有单元测试）：`confirmedFileDrag`（changeCount 变化且有 fileURL）/ `staleFileURL`（有 fileURL 但 changeCount 未变，疑似残留）/ `nonFileDrag`。默认只有 `confirmedFileDrag` 会打开 Shelf；菜单可以关闭"仅在 changeCount 变化时触发"，用于对比实验。
@@ -91,28 +91,28 @@
 - `NSDraggingInfo.draggingSourceOperationMask`："If the user holds down a modifier key during the dragging session and the dragging source allows modifier keys to affect the drag operation, the system combines the dragging source operation mask with the value that corresponds to the modifier key. You control whether the modifier keys can affect the drag operation using the dragging source's `ignoreModifierKeys(for:)` method." 也就是说，现行文档**没有给出**修饰键与操作的具体对应表。
 - `NSDraggingDestination.draggingEntered(_:)`：目的地必须返回**一个**操作，依据是"源允许的操作"（`draggingSourceOperationMask`）与"目的地自身支持的操作和类型"的交集。**最终操作由目的地（Finder、浏览器等）决定**，再通过 `draggingSession(_:endedAt:operation:)` 告知源。
 - 归档文档《Drag and Drop Programming Topics › Dragging Sources》（legacy，基于旧的 `draggedImage:` API）有一张表："Control → Link、Option → Copy、Command → Generic"，说明为"source's operation mask is filtered to only contain the operations given"。同一文档还写道：源若支持 Move/Delete，需要在拖拽结束回调里"remove the dragged data from the source"。
-- **结论**：上述映射只出现在归档文档中，不能当作现代 `NSDraggingSession` 在 macOS 27 上的保证。自定义拖拽源也**不会自动**表现得和 Finder 自己发起的拖拽一样："同卷默认移动、跨卷默认复制"是 Finder 作为拖拽源和目的地时的行为，不是 API 保证。FloatShelf 作为源时，Finder 在不同掩码和修饰键下选择什么操作，**一律待用户实测**；日志会记录提供的掩码、结束时的修饰键和目的地实际返回的操作。
+- **结论**：上述映射只出现在归档文档中，不能当作现代 `NSDraggingSession` 在 macOS 27 上的保证。自定义拖拽源也**不会自动**表现得和 Finder 自己发起的拖拽一样："同卷默认移动、跨卷默认复制"是 Finder 作为拖拽源和目的地时的行为，不是 API 保证。Pawver 作为源时，Finder 在不同掩码和修饰键下选择什么操作，**一律待用户实测**；日志会记录提供的掩码、结束时的修饰键和目的地实际返回的操作。
 
 **Phase 0 实现（先复制，后移动）**：
 - 拖出视图在 `mouseDragged:` 中调用 `beginDraggingSession(with:event:source:)`；每个 `NSDraggingItem(pasteboardWriter: url as NSURL)`（NSURL 实现了 `NSPasteboardWriting`）。单项拖动和"拖动全部"共用同一个源。
 - `.outsideApplication`：默认**只返回 `[.copy]`**。菜单里打开"拖出时允许移动（实验）"后返回 `[.copy, .move]`。永远不含 `.delete`。是否需要 `.generic`、`.link`，待实测后再定。
-- `.withinApplication`：返回 `[]`，即拖回 FloatShelf 自身不构成操作。
+- `.withinApplication`：返回 `[]`，即拖回 Pawver 自身不构成操作。
 - 不重写 `ignoreModifierKeys(for:)`（默认允许修饰键参与）。Option、Command、Control 的实际效果以日志为准。
 - `draggingSession(_:endedAt:operation:)`：
   - `[]`（Esc 取消，或放到不接受的位置）→ Shelf 不变；
   - `.copy` → Shelf 不变；
   - `.move` → 文件由目的地移动；Shelf **仅当 operation == .move 且原路径已不存在**时才移除该引用（`ShelfStore.shouldRemoveAfterDragOut`，有单元测试）；
-  - **FloatShelf 在任何情况下都不会自己删除或移动源文件。**
+  - **Pawver 在任何情况下都不会自己删除或移动源文件。**
 - 不模拟按键、不写系统剪贴板。
 - 同名文件：以标准化路径去重（不解析符号链接）。同名项在 UI 中追加父目录名区分；父目录名也相同时显示完整父路径。`fileResourceIdentifierKey` 与 bookmark 追踪推迟到 P1 评估。
 - **注意**：如果打开了"允许移动"并把项目拖到废纸篓，结果由 Finder 决定（可能把真实文件移入废纸篓）。Phase 0 默认只提供复制，此场景待测，并会在 README 中说明。
 ### 2.4 应用形态与签名
 
-- 非沙盒、ad-hoc 签名（`codesign --force --sign - --identifier com.weijiaren.FloatShelf`）。沙盒会限制读取他人拖入文件的长期访问，且对本需求无收益。
-- `Info.plist`：`LSUIElement = YES`（无 Dock 图标）、`CFBundleIdentifier = com.weijiaren.FloatShelf`（固定不变）、`LSMinimumSystemVersion = 14.0`、`NSHighResolutionCapable`。
+- 非沙盒、ad-hoc 签名（`codesign --force --sign - --identifier com.weijiaren.Pawver`）。沙盒会限制读取他人拖入文件的长期访问，且对本需求无收益。
+- `Info.plist`：`LSUIElement = YES`（无 Dock 图标）、`CFBundleIdentifier = com.weijiaren.Pawver`（固定不变）、`LSMinimumSystemVersion = 14.0`、`NSHighResolutionCapable`。
 - **TCC 与 ad-hoc 签名**：ad-hoc 签名的指定要求（DR）是 cdhash，每次重建都会变化，已授予的 Accessibility / Input Monitoring 会"开关仍显示开启但实际失效"。对策：
   1. 选定的主路径（全局鼠标监听 + Carbon 热键）**本身不需要任何 TCC 权限**，因此该问题不影响 P0；
-  2. 若启用 CGEventTap 引擎：README 提供 `tccutil reset ListenEvent com.weijiaren.FloatShelf` 后重新授权的步骤；
+  2. 若启用 CGEventTap 引擎：README 提供 `tccutil reset ListenEvent com.weijiaren.Pawver` 后重新授权的步骤；
   3. 可选：用户自行在钥匙串创建本地自签名代码签名证书，`build.sh` 支持 `SIGN_IDENTITY="..."` 环境变量，使 DR 稳定（不由脚本自动创建证书、不修改钥匙串）。
 
 ### 2.5 多显示器坐标
@@ -131,7 +131,7 @@
 
 ### 2.7 菜单栏
 
-- `NSStatusItem`（SF Symbol 模板图标），菜单：新建 Shelf、最近的 Shelf（P1）、设置…、权限与诊断…、**退出 FloatShelf（⌘Q）**。
+- `NSStatusItem`（SF Symbol 模板图标），菜单：新建 Shelf、最近的 Shelf（P1）、设置…、权限与诊断…、**退出 Pawver（⌘Q）**。
 - 状态栏按钮注册拖放类型：把文件拖到菜单栏图标 → 新建 Shelf 并放入（P1，可选）。
 
 ---
@@ -139,17 +139,17 @@
 ## 3. 模块架构
 
 ```
-FloatShelf/
+Pawver/
 ├── Package.swift                     # swift-tools-version 6.0，Swift 6 语言模式，macOS 14+
 ├── Sources/
-│   ├── FloatShelfCore/               # 纯逻辑库，无 AppKit UI 依赖，可单元测试
+│   ├── PawverCore/               # 纯逻辑库，无 AppKit UI 依赖，可单元测试
 │   │   ├── Gesture/ShakeDetector.swift        # 摇晃识别算法 + ShakeConfig（阈值/灵敏度/冷却）
 │   │   ├── Geometry/ShelfPositioning.swift    # 多屏定位/夹紧/翻转纯函数
 │   │   ├── Model/ShelfItem.swift              # 文件引用（URL、bookmark、resourceID、显示名）
 │   │   ├── Model/ShelfStore.swift             # 增删、去重、排序、移动后校验
 │   │   ├── Drag/DragSessionTracker.swift      # 多信号分类：changeCount 基线 + fileURL 类型（confirmed/stale/nonFile）
 │   │   └── Settings/SettingsModel.swift       # Codable 设置 + UserDefaults 键
-│   └── FloatShelf/                   # 可执行 target（AppKit + SwiftUI）
+│   └── Pawver/                   # 可执行 target（AppKit + SwiftUI）
 │       ├── App/main.swift, AppDelegate.swift, StatusItemController.swift
 │       ├── WindowManagement/ShelfPanel.swift, ShelfWindowController.swift, ShelfManager.swift
 │       ├── DragCoordination/GlobalDragMonitor.swift   # NSEvent 全局监听（主）
@@ -161,26 +161,26 @@ FloatShelf/
 │       ├── Hotkey/HotkeyManager.swift                  # Carbon RegisterEventHotKey
 │       ├── Permissions/PermissionCenter.swift          # AX / ListenEvent 检测 + 打开系统设置对应面板
 │       ├── Settings/SettingsWindow.swift (SwiftUI)
-│       └── Diagnostics/Log.swift                       # os.Logger，subsystem com.weijiaren.FloatShelf，分类 drag/shake/window/dragout/hotkey
-├── Tests/FloatShelfCoreTests/        # swift-testing（或无宏断言 runner，见 §1.1）
+│       └── Diagnostics/Log.swift                       # os.Logger，subsystem com.weijiaren.Pawver，分类 drag/shake/window/dragout/hotkey
+├── Tests/PawverCoreTests/        # swift-testing（或无宏断言 runner，见 §1.1）
 ├── Resources/Info.plist, AppIcon（sips+iconutil 生成，独立设计，不使用 Dropover 资源）
 ├── scripts/build.sh, run.sh, test.sh, make-icon.sh
 ├── docs/PLAN.md, docs/TESTING.md（手工 GUI 验收清单）
 └── README.md
 ```
 
-依赖方向：`FloatShelf (App)` → `FloatShelfCore`；Core 不依赖 AppKit 窗口类（可依赖 Foundation/CoreGraphics 类型）。并发：UI 与监听回调统一 `@MainActor`；Core 类型为 `Sendable` 值类型。
+依赖方向：`Pawver (App)` → `PawverCore`；Core 不依赖 AppKit 窗口类（可依赖 Foundation/CoreGraphics 类型）。并发：UI 与监听回调统一 `@MainActor`；Core 类型为 `Sendable` 值类型。
 
 ---
 
 ## 4. 构建方案（仅 CLT）
 
 `scripts/build.sh`：
-1. `swift build -c release --product FloatShelf`；`BIN=$(swift build -c release --show-bin-path)`。
-2. 组装 `build/FloatShelf.app/Contents/{MacOS,Resources,Info.plist}`，复制可执行文件与 `AppIcon.icns`。
+1. `swift build -c release --product Pawver`；`BIN=$(swift build -c release --show-bin-path)`。
+2. 组装 `build/Pawver.app/Contents/{MacOS,Resources,Info.plist}`，复制可执行文件与 `AppIcon.icns`。
 3. `plutil -lint` 校验 Info.plist。
-4. 签名：`codesign --force --sign "${SIGN_IDENTITY:--}" --identifier com.weijiaren.FloatShelf build/FloatShelf.app`，再 `codesign --verify --verbose`。
-5. 输出路径；`scripts/run.sh` 用 `open build/FloatShelf.app`（或直接执行二进制以便看日志）；`log stream --predicate 'subsystem == "com.weijiaren.FloatShelf"'` 查看诊断。
+4. 签名：`codesign --force --sign "${SIGN_IDENTITY:--}" --identifier com.weijiaren.Pawver build/Pawver.app`，再 `codesign --verify --verbose`。
+5. 输出路径；`scripts/run.sh` 用 `open build/Pawver.app`（或直接执行二进制以便看日志）；`log stream --predicate 'subsystem == "com.weijiaren.Pawver"'` 查看诊断。
 - 不写入 `/Applications`；是否复制到 `~/Applications` 由用户决定。
 - `.build/`、`build/`、`.scratch/` 写入 `.gitignore`。
 
@@ -199,7 +199,7 @@ FloatShelf/
 - 提交：`feat(poc): verify shake-to-open during Finder drag and native drag out`
 
 ### Phase 1 — 完整核心功能
-- ⌃⌥S 全局快捷键、菜单栏新建 Shelf、Shelf 关闭/固定/清空、缩略图 + 文件名 + 数量 + 空状态、多文件/文件夹、拖全部、同名文件处理、`ShelfPositioning` 多屏夹紧、`build.sh` 产出可双击的 `FloatShelf.app`。
+- ⌃⌥S 全局快捷键、菜单栏新建 Shelf、Shelf 关闭/固定/清空、缩略图 + 文件名 + 数量 + 空状态、多文件/文件夹、拖全部、同名文件处理、`ShelfPositioning` 多屏夹紧、`build.sh` 产出可双击的 `Pawver.app`。
 - 自动：定位数学、去重/同名、移动后校验逻辑单测。
 - 提交：`feat(core): ...`、`build: add CLI app bundle script`
 
@@ -255,5 +255,5 @@ FloatShelf/
 - `docs: add environment findings and architecture plan`
 - `feat(poc): show shelf on shake during Finder drag`
 - `feat(dragout): support dragging all items with native NSDraggingSession`
-- `build: assemble FloatShelf.app with ad-hoc signing`
+- `build: assemble Pawver.app with ad-hoc signing`
 - `test(shake): cover false-positive movement patterns`

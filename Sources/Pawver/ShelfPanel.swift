@@ -2,7 +2,7 @@ import AppKit
 
 /// Borderless, non-activating floating panel. It never becomes key or main,
 /// so showing it (even mid-drag) does not take keyboard focus from the
-/// frontmost app or activate FloatShelf.
+/// frontmost app or activate Pawver.
 final class ShelfPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(contentRect: contentRect, styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)

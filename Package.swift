@@ -9,25 +9,25 @@ let cltTestingRPaths: [String] = [
 ]
 
 let package = Package(
-    name: "FloatShelf",
+    name: "Pawver",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "FloatShelf", targets: ["FloatShelf"]),
-        .library(name: "FloatShelfCore", targets: ["FloatShelfCore"]),
+        .executable(name: "Pawver", targets: ["Pawver"]),
+        .library(name: "PawverCore", targets: ["PawverCore"]),
     ],
     targets: [
-        .target(name: "FloatShelfCore"),
+        .target(name: "PawverCore"),
         .executableTarget(
-            name: "FloatShelf",
-            dependencies: ["FloatShelfCore"],
+            name: "Pawver",
+            dependencies: ["PawverCore"],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("Carbon"),
             ]
         ),
         .testTarget(
-            name: "FloatShelfCoreTests",
-            dependencies: ["FloatShelfCore"],
+            name: "PawverCoreTests",
+            dependencies: ["PawverCore"],
             linkerSettings: [.unsafeFlags(cltTestingRPaths)]
         ),
     ]

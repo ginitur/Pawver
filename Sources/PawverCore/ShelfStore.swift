@@ -1,6 +1,6 @@
 import Foundation
 
-/// One shelf entry. FloatShelf stores a *reference* (URL) only: it never
+/// One shelf entry. Pawver stores a *reference* (URL) only: it never
 /// copies, moves, modifies or deletes the file itself.
 public struct ShelfItem: Identifiable, Hashable, Sendable {
     public let id: UUID

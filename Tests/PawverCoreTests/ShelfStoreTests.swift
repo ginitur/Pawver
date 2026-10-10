@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FloatShelfCore
+@testable import PawverCore
 
 @Suite("ShelfStore")
 struct ShelfStoreTests {

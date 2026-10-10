@@ -1,4 +1,6 @@
-# FloatShelf Phase 0：验证说明、自动验证结果与手工验收步骤
+# Pawver Phase 0：验证说明、自动验证结果与手工验收步骤
+
+> 产品在 Phase 0 测试期间名为 **FloatShelf**，2026-10-10 更名为 Pawver（bundle id 改为 `com.weijiaren.Pawver`，因此旧的设置不会迁移）。下文中的日志摘录和历史日志文件名（`logs/floatshelf-*.log`）保留原样；仓库目录仍为 `/Users/weijiaren/Projects/FloatShelf`。
 
 > 原则：**编译通过或应用能启动，不能证明跨应用拖拽可用。** 本文把"已自动验证"和"需要 Gerry 亲手做的 GUI 验收"严格分开。所有 GUI 项在用户实测之前都标为 **待用户验证**。
 > 所有拖拽测试只使用 `scripts/make-test-files.sh` 生成的专用测试文件（`TestFixtures/`，已被 git 忽略），不要用真实文件。
@@ -9,14 +11,14 @@
 
 | 交付物 | 路径 |
 |---|---|
-| 可双击运行的应用（ad-hoc 签名，LSUIElement，无 Dock 图标） | `dist/FloatShelf.app` |
+| 可双击运行的应用（ad-hoc 签名，LSUIElement，无 Dock 图标） | `dist/Pawver.app` |
 | 构建 / 启动 / 测试脚本 | `scripts/build.sh`、`scripts/run.sh`、`scripts/test.sh` |
 | 测试文件生成与校验 | `scripts/make-test-files.sh`、`scripts/verify-test-files.sh` |
 | 规划（已按官方文档修订 §2.1、§2.3） | `docs/PLAN.md` |
 | 本文件 | `docs/PHASE0_TESTING.md` |
 
 Phase 0 功能范围：
-- 菜单栏图标，菜单项依次为：新建 Shelf、拖拽检测引擎（全局监听 / 轮询）、摇晃灵敏度、仅在 changeCount 变化时触发、拖出时允许移动（实验，默认关）、详细诊断日志、记录屏幕信息、权限状态、**退出 FloatShelf**。
+- 菜单栏图标，菜单项依次为：新建 Shelf、拖拽检测引擎（全局监听 / 轮询）、摇晃灵敏度、仅在 changeCount 变化时触发、拖出时允许移动（实验，默认关）、详细诊断日志、记录屏幕信息、权限状态、**退出 Pawver**。
 - 摇晃检测：在确认为文件拖拽时打开 Shelf。
 - 非激活浮动 Shelf：接收文件拖入，只保存引用。
 - 拖出：单项或"拖动全部"，默认**只提供复制**。
@@ -32,9 +34,9 @@ Phase 0 功能范围：
 | Debug 全量构建 | `swift build`（清空 `.build` 后） | ✅ `Build complete!`，**0 个编译 warning**（只有工具链自带的 2 条无害链接器 "search path not found"） |
 | 单元测试 | `scripts/test.sh` | ✅ `Test run with 46 tests in 4 suites passed` |
 | Release 构建并组装 .app | `scripts/build.sh` | ✅ `Build complete!` |
-| Info.plist 校验 | `plutil -lint`（build.sh 内） | ✅ `OK`；`LSUIElement => true`，`CFBundleIdentifier => com.weijiaren.FloatShelf` |
+| Info.plist 校验 | `plutil -lint`（build.sh 内） | ✅ `OK`；`LSUIElement => true`，`CFBundleIdentifier => com.weijiaren.Pawver` |
 | 签名校验 | `codesign --verify --strict --verbose=2` | ✅ `valid on disk` / `satisfies its Designated Requirement`；`Signature=adhoc`，arm64 |
-| 启动冒烟测试 | `scripts/run.sh`（经 `open` 启动），约 10 秒后 `kill -TERM` 结束 | ✅ 进程存活（`pgrep` 找到 FloatShelf，RSS 约 64 MB），统一日志和 `logs/*.log` 中都有启动日志，见下 |
+| 启动冒烟测试 | `scripts/run.sh`（经 `open` 启动），约 10 秒后 `kill -TERM` 结束 | ✅ 进程存活（`pgrep` 找到 Pawver，RSS 约 64 MB），统一日志和 `logs/*.log` 中都有启动日志，见下 |
 | 测试文件脚本 | `make-test-files.sh` → `verify-test-files.sh` | ✅ 9 个文件、14 个条目、`RESULT: PASS`；重复运行未带 `--force` 会拒绝覆盖（exit 1） |
 | 校验脚本负向测试 | 故意改动一个文件、改名一个文件、往目的地复制文件 | ✅ 检出 `notes.md: FAILED`、缺失 `pixel.png`、目录树差异，并报 `RESULT: FAIL`；目的地中的文件正确识别为 "== copy of source/…"。之后已用 `--force` 重建为干净状态 |
 
@@ -57,7 +59,7 @@ NOTE  [app] startup complete: engine=globalMonitor sensitivity=medium requireCha
 
 观察到的权限状态：辅助功能和输入监控**都未授权**。安装全局鼠标监听返回了非 nil，Carbon 热键注册也成功，整个过程没有出现系统授权弹窗。但"未授权时拖拽中能否收到鼠标事件、热键能否真正触发"属于 GUI 行为，**待用户验证**。
 
-冒烟测试的副作用：没有生成 `~/Library/Preferences/com.weijiaren.FloatShelf.plist`（启动前后都检查过；只有在菜单里改设置时才会写入）。`open` 启动会让 LaunchServices 登记这个 .app，这是任何可双击应用都会有的行为。统一日志写入系统日志。冒烟测试结束后 FloatShelf **没有在运行**。
+冒烟测试的副作用：没有生成 `~/Library/Preferences/com.weijiaren.Pawver.plist`（启动前后都检查过；只有在菜单里改设置时才会写入）。`open` 启动会让 LaunchServices 登记这个 .app，这是任何可双击应用都会有的行为。统一日志写入系统日志。冒烟测试结束后 Pawver **没有在运行**。
 
 **以上任何一项都不能证明 Finder 跨应用拖拽可用。**
 
@@ -67,20 +69,20 @@ NOTE  [app] startup complete: engine=globalMonitor sensitivity=medium requireCha
 
 ```bash
 cd /Users/weijiaren/Projects/FloatShelf
-scripts/build.sh                 # 生成 dist/FloatShelf.app
+scripts/build.sh                 # 生成 dist/Pawver.app
 scripts/make-test-files.sh       # 若已存在：scripts/make-test-files.sh --force
-scripts/run.sh                   # 启动，并把日志另写一份到 logs/floatshelf-<时间>.log
+scripts/run.sh                   # 启动，并把日志另写一份到 logs/pawver-<时间>.log
 ```
 
-也可以直接在 Finder 里双击 `dist/FloatShelf.app`，但这样只有系统日志，没有 `logs/` 文件。
+也可以直接在 Finder 里双击 `dist/Pawver.app`，但这样只有系统日志，没有 `logs/` 文件。
 
 **实时查看日志**（另开一个终端窗口）。注意 zsh 里 `log` 是内建命令，必须写 `/usr/bin/log`：
 ```bash
-/usr/bin/log stream --level debug --style compact --predicate 'subsystem == "com.weijiaren.FloatShelf"'
+/usr/bin/log stream --level debug --style compact --predicate 'subsystem == "com.weijiaren.Pawver"'
 ```
 事后导出：
 ```bash
-/usr/bin/log show --last 30m --info --debug --style compact --predicate 'subsystem == "com.weijiaren.FloatShelf"' > logs/phase0-unified.log
+/usr/bin/log show --last 30m --info --debug --style compact --predicate 'subsystem == "com.weijiaren.Pawver"' > logs/phase0-unified.log
 ```
 建议在菜单栏图标菜单里勾选 **"详细诊断日志"**，这样会额外记录每次按下的细节和原始 URL。
 
@@ -106,8 +108,8 @@ destination-2/                    ← 空目的地 2
 
 ### T0 启动与菜单栏
 1. `scripts/run.sh` 启动。
-2. 预期：菜单栏出现托盘图标（`tray.full`），Dock 中**没有**图标。点开菜单，能看到上面列出的各项，最后一项是 **"退出 FloatShelf"**。
-3. 如果菜单栏图标被刘海或拥挤的菜单栏挡住：按 ⌃⌥S 仍可打开 Shelf；用 `pgrep -lx FloatShelf` 确认进程在运行。
+2. 预期：菜单栏出现托盘图标（`tray.full`），Dock 中**没有**图标。点开菜单，能看到上面列出的各项，最后一项是 **"退出 Pawver"**。
+3. 如果菜单栏图标被刘海或拥挤的菜单栏挡住：按 ⌃⌥S 仍可打开 Shelf；用 `pgrep -lx Pawver` 确认进程在运行。
 
 ### T1 热键打开，不抢焦点
 1. 在 Finder 中点一下某个窗口，让 Finder 处于前台；也可以在 Finder 窗口的搜索框里输入几个字符。
@@ -213,13 +215,13 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
 ### T13 权限提示
 1. 菜单 → "权限状态…"：预期两项都显示"未授权"，同时说明主路径不需要这两项权限。
 2. 关键结论要靠 T3 和 T1 判断：在两项都未授权时，如果摇晃唤出和热键都能工作，就说明 Phase 0 主路径确实不需要这些权限。如果全局监听不工作而轮询可以，请记录，后续据此决定是否引入 Input Monitoring 引导。
-3. FloatShelf **不会**主动弹出系统授权请求。
+3. Pawver **不会**主动弹出系统授权请求。
 
 ### T14（可选，最后做，会改变测试文件）移动语义评估
 只有在 T5–T8 的复制测试都通过之后再做。
 1. 菜单中勾选"拖出时允许“移动”（实验）"。
 2. 从 Shelf 把 `source/B/pixel.png` 拖到 `destination/`。分别试不按修饰键和按住 Command，记录 Finder 选择了复制还是移动。
-3. 如果 Finder 执行了移动：`source/B/pixel.png` 消失（这是 Finder 移动的，不是 FloatShelf），日志 `operation=move`，`sourceExists=false removeFromShelf=true`，Shelf 中该项被移除。此时 `verify-test-files.sh` **会报告 FAIL，这是预期的**。
+3. 如果 Finder 执行了移动：`source/B/pixel.png` 消失（这是 Finder 移动的，不是 Pawver），日志 `operation=move`，`sourceExists=false removeFromShelf=true`，Shelf 中该项被移除。此时 `verify-test-files.sh` **会报告 FAIL，这是预期的**。
 4. 测试完成后取消勾选，并运行 `scripts/make-test-files.sh --force` 重建测试文件。
 
 ---
@@ -255,11 +257,11 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
 5. 拖出默认只提供 copy；move 在实验开关后面，`.generic` 和 `.link` 尚未提供，修饰键的实际效果待 T7 实测。
 6. Shelf 拖回自身返回 `[]`（不构成操作）。
 7. 没有应用图标（Phase 2 用 `sips` + `iconutil` 制作）。菜单栏使用 SF Symbol。
-8. 轮询引擎空闲时 5 Hz，检测到按下最多延迟约 200 ms。它也会把 FloatShelf 自身窗口里的点击算作按下，但会被拖拽板判断过滤。
+8. 轮询引擎空闲时 5 Hz，检测到按下最多延迟约 200 ms。它也会把 Pawver 自身窗口里的点击算作按下，但会被拖拽板判断过滤。
 9. Finder 拖拽板上的 file reference URL（`file:///.file/id=…`）会转换为路径 URL。代码已处理，但真实 Finder 拖拽是否提供这种 URL，需开启详细日志查看 `raw dropped URLs`。
 10. ad-hoc 签名每次构建 cdhash 都会变；只有将来启用需要 TCC 权限的引擎时才有影响，Phase 0 主路径不需要权限。
 11. zsh 中 `log` 是内建命令，查看日志必须写 `/usr/bin/log`。
-12. 冒烟测试用 `kill -TERM` 结束进程，所以那次运行没有记录 `FloatShelf terminating`。用户从菜单退出时会记录。
+12. 冒烟测试用 `kill -TERM` 结束进程，所以那次运行没有记录 `Pawver terminating`。用户从菜单退出时会记录。
 13. ⌃⌥S 若已被其他应用占用，注册会失败，日志会提示 `eventHotKeyExistsErr`。
 14. 测试只能在 Command Line Tools 下用 Swift Testing，并依赖 `scripts/test.sh` 中的 plugin-path 绕过（见 PLAN §1.1）。
 
@@ -276,19 +278,20 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
     - 记录每一个 Carbon 热键事件（pressed 和 released），附带当时的前台应用；
     - 菜单显示注册状态和触发次数，并新增"重新注册快捷键"；
     - 唤醒、会话重新激活时自动重新注册；
-    - 仅当辅助功能**已经**授权时，额外安装 NSEvent keyDown 后备（FloatShelf 不会主动请求该权限）。
+    - 仅当辅助功能**已经**授权时，额外安装 NSEvent keyDown 后备（Pawver 不会主动请求该权限）。
   - **复测时请记录**：按键时的前台应用、当前输入法，以及日志中是否出现 `carbon hot-key event`。
+  - ✅ **复测结论（2026-10-10）**：用户确认使用新版本后 ⌃⌥S 工作正常。最初失效的确切原因没有复现，也未能确定。
 
 ## 7. 实际项目结构（Phase 0）
 
 ```
 Package.swift                         # Swift 6 语言模式，macOS 14+；Core 库 + 可执行 + 测试
-Sources/FloatShelfCore/               # 纯逻辑，可单元测试
+Sources/PawverCore/               # 纯逻辑，可单元测试
   ShakeDetector.swift                 # 摇晃识别 + ShakeConfig/预设
   ShelfPositioning.swift              # 多屏定位、夹紧、像素对齐
   ShelfStore.swift                    # ShelfItem（只存引用）、去重、显示名、拖出后移除规则
   DragSessionTracker.swift            # changeCount + fileURL 多信号分类
-Sources/FloatShelf/                   # AppKit 应用
+Sources/Pawver/                   # AppKit 应用
   main.swift, AppDelegate.swift, StatusItemController.swift, AppSettings.swift
   DragEngines.swift                   # 全局监听引擎 + 轮询引擎
   DragSignalProcessor.swift           # 信号融合、摇晃触发、证据日志
@@ -299,7 +302,7 @@ Sources/FloatShelf/                   # AppKit 应用
   HotkeyManager.swift                 # Carbon 热键 ⌃⌥S
   Permissions.swift                   # 只读权限探测
   Diagnostics.swift                   # os.Logger + 可选日志文件
-Tests/FloatShelfCoreTests/            # Swift Testing，46 项
+Tests/PawverCoreTests/            # Swift Testing，46 项
 Resources/Info.plist
 scripts/                              # build / run / test / make-test-files / verify-test-files
 ```

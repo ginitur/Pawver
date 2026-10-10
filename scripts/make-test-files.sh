@@ -1,6 +1,6 @@
 #!/bin/bash
 # Creates a dedicated fixture tree for manual drag tests inside the project:
-#   TestFixtures/source/...      files to drag (never modified by FloatShelf)
+#   TestFixtures/source/...      files to drag (never modified by Pawver)
 #   TestFixtures/destination/    empty drop targets
 #   TestFixtures/manifest.*      checksums + tree listing for verify-test-files.sh
 # Usage: scripts/make-test-files.sh [--force]
@@ -26,7 +26,7 @@ mkdir -p "$SRC/A/Folder With Spaces/nested" "$SRC/B" "$FX/destination" "$FX/dest
 
 printf 'Report from folder A\n' > "$SRC/A/report.txt"
 printf 'Report from folder B — same file name, different content\n' > "$SRC/B/report.txt"
-printf '# Notes\n\nFixture for FloatShelf drag tests.\n' > "$SRC/A/notes.md"
+printf '# Notes\n\nFixture for Pawver drag tests.\n' > "$SRC/A/notes.md"
 printf '中文文件名测试\n' > "$SRC/A/中文 文件.txt"
 head -c 262144 /dev/urandom > "$SRC/A/random-256k.bin"
 # 1x1 PNG

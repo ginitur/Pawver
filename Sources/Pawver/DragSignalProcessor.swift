@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 /// Combines all drag signals into a single decision:
 ///  - mouse press state (from the active engine, cross-checked with
@@ -32,7 +32,7 @@ final class DragSignalProcessor {
         Diag.info(.shake, "shake config: minSwing=\(config.minSwingDistance)pt reversals=\(config.requiredReversals) window=\(config.timeWindow)s maxVerticalRatio=\(config.maxVerticalRatio) cooldown=\(config.cooldown)s")
     }
 
-    /// Called after FloatShelf's own drag-out session wrote the drag pasteboard.
+    /// Called after Pawver's own drag-out session wrote the drag pasteboard.
     func resetBaseline(reason: String) {
         let cc = pasteboard.changeCount
         tracker.resetBaseline(cc)

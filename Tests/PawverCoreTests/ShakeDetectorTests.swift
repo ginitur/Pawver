@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FloatShelfCore
+@testable import PawverCore
 
 /// Generates a triangle-wave horizontal motion: `legs` straight strokes of
 /// `distance` points, each lasting `legDuration` seconds, sampled every `dt`.

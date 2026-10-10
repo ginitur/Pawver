@@ -1,5 +1,5 @@
 import AppKit
-import FloatShelfCore
+import PawverCore
 
 /// NSDraggingSource for dragging shelf items out to Finder, browsers, etc.
 ///
@@ -8,7 +8,7 @@ import FloatShelfCore
 /// modifier keys, the system combines that mask with the modifier keys; the
 /// destination then chooses one operation and reports it back through
 /// draggingSession(_:endedAt:operation:). The source is responsible for any
-/// follow-up of a move. FloatShelf never touches the file itself.
+/// follow-up of a move. Pawver never touches the file itself.
 ///
 /// Phase 0 offers COPY only to other apps. MOVE is added only if the user
 /// enables the experimental setting. DELETE is never offered.
@@ -55,7 +55,7 @@ final class DragOutController: NSObject, NSDraggingSource {
         case .outsideApplication:
             return outsideMask()
         case .withinApplication:
-            // Dropping back onto a FloatShelf panel is not an operation in Phase 0.
+            // Dropping back onto a Pawver panel is not an operation in Phase 0.
             return []
         @unknown default:
             return [.copy]

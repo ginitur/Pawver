@@ -1,8 +1,8 @@
 import Foundation
-import FloatShelfCore
+import PawverCore
 
 /// Phase 0 settings, persisted in the app's own UserDefaults domain
-/// (com.weijiaren.FloatShelf). Can also be set with `defaults write`.
+/// (com.weijiaren.Pawver). Can also be set with `defaults write`.
 @MainActor
 final class AppSettings {
     enum Engine: String, CaseIterable {
