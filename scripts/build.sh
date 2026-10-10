@@ -18,12 +18,21 @@ BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 BIN="$BIN_DIR/Pawver"
 [ -x "$BIN" ] || { echo "error: executable not found at $BIN" >&2; exit 1; }
 
+echo "==> App icon (scripts/make-icon.sh)"
+ICNS="$ROOT/build/icon/AppIcon.icns"
+if [ ! -f "$ICNS" ] || [ "$ROOT/Resources/Brand/pawver-source.png" -nt "$ICNS" ] || [ "$ROOT/scripts/make-icon.swift" -nt "$ICNS" ]; then
+  "$ROOT/scripts/make-icon.sh"
+else
+  echo "    up to date: $ICNS"
+fi
+
 echo "==> Assembling $APP"
 # Only ever removes the bundle inside this project's dist/ directory.
 if [ -d "$APP" ]; then rm -rf "$APP"; fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Pawver"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 echo "==> plutil -lint"
@@ -34,4 +43,6 @@ codesign --force --sign "$IDENTITY" --identifier "$BUNDLE_ID" --timestamp=none "
 codesign --verify --strict --verbose=2 "$APP"
 codesign -d -r- "$APP" 2>&1 | grep -E "designated" || true
 
+# Nudge Finder/LaunchServices to drop a cached (old or generic) icon.
+touch "$APP"
 echo "==> Built $APP"
