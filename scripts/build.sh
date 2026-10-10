@@ -12,9 +12,12 @@ DIST="$ROOT/dist"
 APP="$DIST/Pawver.app"
 IDENTITY="${SIGN_IDENTITY:--}"
 
-echo "==> swift build -c $CONFIG --product Pawver"
-swift build -c "$CONFIG" --product Pawver
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
+# UNIVERSAL=1 builds arm64 + x86_64 (used by scripts/package.sh); default is the host arch.
+ARCH_ARGS=()
+if [ "${UNIVERSAL:-0}" = "1" ]; then ARCH_ARGS=(--arch arm64 --arch x86_64); fi
+echo "==> swift build -c $CONFIG --product Pawver ${ARCH_ARGS[*]-}"
+swift build -c "$CONFIG" --product Pawver ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"}
+BIN_DIR="$(swift build -c "$CONFIG" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} --show-bin-path)"
 BIN="$BIN_DIR/Pawver"
 [ -x "$BIN" ] || { echo "error: executable not found at $BIN" >&2; exit 1; }
 
@@ -45,4 +48,5 @@ codesign -d -r- "$APP" 2>&1 | grep -E "designated" || true
 
 # Nudge Finder/LaunchServices to drop a cached (old or generic) icon.
 touch "$APP"
+echo "==> Architectures: $(lipo -archs "$APP/Contents/MacOS/Pawver")"
 echo "==> Built $APP"
