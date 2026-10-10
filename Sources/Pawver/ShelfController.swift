@@ -32,6 +32,8 @@ final class ShelfController: NSObject, ShelfDropHandling {
     }
 
     var isVisible: Bool { panel.isVisible }
+    /// "…" button in the shelf header; shows the app menu (incl. Quit / show menu bar icon).
+    var onMenuButton: ((NSView) -> Void)?
 
     // MARK: UI
 
@@ -69,6 +71,13 @@ final class ShelfController: NSObject, ShelfDropHandling {
         closeButton.toolTip = "关闭 Shelf（只释放引用，不影响原文件）"
         closeButton.translatesAutoresizingMaskIntoConstraints = false
 
+        let menuImage = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "Pawver menu") ?? NSImage()
+        let menuButton = FirstMouseButton(image: menuImage, target: self, action: #selector(menuClicked(_:)))
+        menuButton.isBordered = false
+        menuButton.contentTintColor = .secondaryLabelColor
+        menuButton.toolTip = "Pawver 菜单（含退出、显示菜单栏图标）"
+        menuButton.translatesAutoresizingMaskIntoConstraints = false
+
         listStack.orientation = .vertical
         listStack.alignment = .leading
         listStack.spacing = 2
@@ -99,7 +108,7 @@ final class ShelfController: NSObject, ShelfDropHandling {
         emptyState.addArrangedSubview(emptyLabel)
         emptyState.translatesAutoresizingMaskIntoConstraints = false
 
-        for v in [countLabel, dragAllHandle, closeButton, scrollView, emptyState] as [NSView] {
+        for v in [countLabel, dragAllHandle, closeButton, menuButton, scrollView, emptyState] as [NSView] {
             effectView.addSubview(v)
         }
 
@@ -113,7 +122,9 @@ final class ShelfController: NSObject, ShelfDropHandling {
             closeButton.topAnchor.constraint(equalTo: effectView.topAnchor, constant: 9),
             countLabel.leadingAnchor.constraint(equalTo: closeButton.trailingAnchor, constant: 8),
             countLabel.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
-            dragAllHandle.trailingAnchor.constraint(equalTo: effectView.trailingAnchor, constant: -10),
+            menuButton.trailingAnchor.constraint(equalTo: effectView.trailingAnchor, constant: -10),
+            menuButton.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+            dragAllHandle.trailingAnchor.constraint(equalTo: menuButton.leadingAnchor, constant: -8),
             dragAllHandle.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
 
             scrollView.leadingAnchor.constraint(equalTo: effectView.leadingAnchor, constant: 4),
@@ -178,6 +189,11 @@ final class ShelfController: NSObject, ShelfDropHandling {
         shownAtUptime = ProcessInfo.processInfo.systemUptime
         let s = screens[index]
         Diag.notice(.shelf, "shelf shown (reason=\(reason), wasVisible=\(wasVisible)) cursor=\(fmt(cursor)) screen#\(index) '\(s.localizedName)' scale=\(s.backingScaleFactor) screenFrame=\(fmt(s.frame)) visibleFrame=\(fmt(s.visibleFrame)) panelFrame=\(fmt(frame)) cursorInsidePanel=\(ShelfPositioning.contains(frame, cursor)) appActive=\(NSApp.isActive) panelIsKey=\(panel.isKeyWindow) frontmostApp=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?")")
+    }
+
+    @objc private func menuClicked(_ sender: NSView) {
+        Diag.info(.shelf, "shelf menu button clicked")
+        onMenuButton?(sender)
     }
 
     @objc private func closeClicked() {

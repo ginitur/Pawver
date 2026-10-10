@@ -282,6 +282,18 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
   - **复测时请记录**：按键时的前台应用、当前输入法，以及日志中是否出现 `carbon hot-key event`。
   - ✅ **复测结论（2026-10-10）**：用户确认使用新版本后 ⌃⌥S 工作正常。最初失效的确切原因没有复现，也未能确定。
 
+## 6.2 更名、图标与可隐藏菜单栏图标（2026-10-10，待用户验证）
+
+- 产品更名为 Pawver（bundle id `com.weijiaren.Pawver`；旧设置不迁移）。
+- App 图标：`scripts/make-icon.sh` → `build/icon/AppIcon.icns`，预览 `dist/icon-preview.png`。
+- 菜单栏图标改为 `pawprint`，`behavior = .removalAllowed`，`autosaveName = PawverStatusItem`。
+- 待验证：
+  1. Finder 中 `dist/Pawver.app` 显示猫咪图标（四角透明）。
+  2. 菜单 → 隐藏菜单栏图标 → 图标消失并弹出说明；日志 `menu bar icon hidden (menu)`。
+  3. 再次双击 Pawver.app → 图标恢复；日志 `menu bar icon shown (app reopened)`。
+  4. ⌘ 拖出图标 → 日志 `isVisible → false (changed outside our menu ...)`；按 ⌃⌥S，Shelf 右上角 “…” → 显示菜单栏图标 / 退出 Pawver 均可用。
+  5. 隐藏状态下退出再启动 → 图标显示；日志 `shown (launch (was hidden in previous session))`。
+
 ## 7. 实际项目结构（Phase 0）
 
 ```

@@ -46,6 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         statusController = StatusItemController(app: self)
+        shelf.onMenuButton = { [weak self] view in
+            self?.statusController?.popUpMenu(in: view)
+        }
 
         // `kill -TERM <pid>` (used by scripts) → normal NSApp.terminate path.
         signal(SIGTERM, SIG_IGN)
@@ -73,6 +76,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine?.stop()
         hotkey.unregister()
         Diag.notice(.app, "Pawver terminating")
+    }
+
+    /// Double-clicking Pawver.app while it is already running lands here: bring the
+    /// menu bar icon back if it was hidden (menu item or ⌘-drag).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let sc = statusController, !sc.isIconVisible {
+            sc.setVisible(true, reason: "app reopened")
+        } else {
+            Diag.info(.app, "app reopened (menu bar icon already visible)")
+        }
+        return false
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }

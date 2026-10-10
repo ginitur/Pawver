@@ -21,6 +21,16 @@ scripts/test.sh         # 单元测试（Swift Testing）
 - 从 Shelf 拖出单个文件，或用右上角"拖动全部"图标一次拖出全部，放到 Finder 或浏览器等应用。Phase 0 默认**只复制**。
 - Pawver 只保存文件引用，**从不复制、移动或删除源文件**。
 
+## 菜单栏图标（可隐藏）
+
+- 菜单栏图标是 SF Symbol `pawprint`（单色模板图，随深浅色自动变化）；App 图标由 `scripts/make-icon.sh` 从 `Resources/Brand/pawver-source.png` 生成（build.sh 会自动调用）。
+- 隐藏：菜单 → **隐藏菜单栏图标**，或按住 ⌘ 把图标拖出菜单栏。两种方式都会记录到 UserDefaults（`statusItemHidden`）。
+- 找回（Pawver 仍在运行时）：
+  1. 再次双击 `dist/Pawver.app`（触发 reopen，图标立即恢复）；
+  2. 或按 **⌃⌥S** 打开 Shelf，点右上角 **“…”** 按钮 → **显示菜单栏图标**。这个菜单和菜单栏菜单相同，**退出 Pawver** 也在里面。
+- 重新启动 Pawver 时总是显示图标（启动即表示想用它，同时保证“退出”可见）。
+- 如果 Finder 仍显示旧图标或通用图标：`touch dist/Pawver.app`（build.sh 已自动执行），必要时重新打开 Finder 窗口。
+
 ## 权限
 
 Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要辅助功能或输入监控权限，Pawver 也不会主动请求。可以在菜单 → "权限状态…" 查看当前状态。
