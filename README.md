@@ -21,6 +21,16 @@ scripts/test.sh         # 单元测试（Swift Testing）
 - 从 Shelf 拖出单个文件，或用右上角"拖动全部"图标一次拖出全部，放到 Finder 或浏览器等应用。Phase 0 默认**只复制**。
 - Pawver 只保存文件引用，**从不复制、移动或删除源文件**。
 
+## 菜单与设置
+
+菜单栏菜单只保留基本项：**新建 Shelf ⌃⌥S**、**设置… ⌘,**、**隐藏菜单栏图标**、**退出 Pawver ⌘Q**。Shelf 右上角“…”按钮弹出同一个菜单。
+
+“设置…”窗口（所有选项保存在 UserDefaults，域 `com.weijiaren.Pawver`）：
+- 通用：显示菜单栏图标
+- 摇晃检测：灵敏度（低/中/高）、检测引擎（全局事件监听 / 轮询）、仅在确认是文件拖拽时触发
+- 快捷键：⌃⌥S 注册状态与触发次数、重新注册
+- 高级与诊断：拖出时允许“移动”（实验）、详细诊断日志、权限状态（只读）、记录屏幕信息、在 Finder 中显示日志
+
 ## 菜单栏图标（可隐藏）
 
 - 菜单栏图标是 SF Symbol `pawprint`（单色模板图，随深浅色自动变化）；App 图标由 `scripts/make-icon.sh` 从 `Resources/Brand/pawver-source.png` 生成（build.sh 会自动调用）。
@@ -33,7 +43,7 @@ scripts/test.sh         # 单元测试（Swift Testing）
 
 ## 权限
 
-Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要辅助功能或输入监控权限，Pawver 也不会主动请求。可以在菜单 → "权限状态…" 查看当前状态。
+Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要辅助功能或输入监控权限，Pawver 也不会主动请求。可以在 设置… → 高级与诊断 中查看当前状态。
 
 ## 日志
 

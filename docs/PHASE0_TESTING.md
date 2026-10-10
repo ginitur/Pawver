@@ -18,7 +18,7 @@
 | 本文件 | `docs/PHASE0_TESTING.md` |
 
 Phase 0 功能范围：
-- 菜单栏图标，菜单项依次为：新建 Shelf、拖拽检测引擎（全局监听 / 轮询）、摇晃灵敏度、仅在 changeCount 变化时触发、拖出时允许移动（实验，默认关）、详细诊断日志、记录屏幕信息、权限状态、**退出 Pawver**。
+- 菜单栏图标，菜单项：新建 Shelf ⌃⌥S、设置… ⌘,、隐藏菜单栏图标、**退出 Pawver** ⌘Q。其余开关（检测引擎、灵敏度、changeCount 条件、实验性移动、详细日志、屏幕信息、权限状态、快捷键状态）在“设置…”窗口中（2026-10-10 起；之前都在菜单里）。
 - 摇晃检测：在确认为文件拖拽时打开 Shelf。
 - 非激活浮动 Shelf：接收文件拖入，只保存引用。
 - 拖出：单项或"拖动全部"，默认**只提供复制**。
@@ -84,7 +84,7 @@ scripts/run.sh                   # 启动，并把日志另写一份到 logs/paw
 ```bash
 /usr/bin/log show --last 30m --info --debug --style compact --predicate 'subsystem == "com.weijiaren.Pawver"' > logs/phase0-unified.log
 ```
-建议在菜单栏图标菜单里勾选 **"详细诊断日志"**，这样会额外记录每次按下的细节和原始 URL。
+建议在 设置… → 高级与诊断 中打开 **"详细诊断日志"**，这样会额外记录每次按下的细节和原始 URL。
 
 测试文件结构（`TestFixtures/`）：
 ```
@@ -108,7 +108,7 @@ destination-2/                    ← 空目的地 2
 
 ### T0 启动与菜单栏
 1. `scripts/run.sh` 启动。
-2. 预期：菜单栏出现托盘图标（`tray.full`），Dock 中**没有**图标。点开菜单，能看到上面列出的各项，最后一项是 **"退出 Pawver"**。
+2. 预期：菜单栏出现托盘图标（`pawprint`），Dock 中**没有**图标。点开菜单，能看到上面列出的各项，最后一项是 **"退出 Pawver"**。
 3. 如果菜单栏图标被刘海或拥挤的菜单栏挡住：按 ⌃⌥S 仍可打开 Shelf；用 `pgrep -lx Pawver` 确认进程在运行。
 
 ### T1 热键打开，不抢焦点
@@ -143,7 +143,7 @@ destination-2/                    ← 空目的地 2
    - `performDragOperation … stored …`
    - 松开后：`SUMMARY classification=confirmedFileDrag … shakeTriggered=true`
 6. 如果 Shelf **没有出现**，请记录日志里缺了哪一行，然后按顺序排查：
-   - **没有任何 `[global]` 日志**：说明全局监听在 Finder 拖拽期间没收到事件。在菜单中切换"拖拽检测引擎 → 轮询"，重做一遍，看日志中是否出现 `[polling]` 的分类和 `SHAKE`。
+   - **没有任何 `[global]` 日志**：说明全局监听在 Finder 拖拽期间没收到事件。在 设置… → 摇晃检测 中把检测引擎切换为"轮询"，重做一遍，看日志中是否出现 `[polling]` 的分类和 `SHAKE`。
    - **有 `shake recognised but NOT opening: classification=staleFileURL`**：说明 changeCount 没有按预期变化。记录 SUMMARY 行，可以临时取消勾选"仅在拖拽板 changeCount 变化时触发"后重试，以作对比。
    - **有 SUMMARY 但没有 SHAKE**：可能是摇晃幅度或速度不够。把"摇晃灵敏度"调到"高"再试。
    - **Shelf 出现了，但放不进去**（没有 `draggingEntered`）：这是平台限制方面的关键证据，请记录。
@@ -213,13 +213,13 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
 2. 预期：日志 `shelf closed … released N reference(s); no file was touched`；`verify-test-files.sh` 为 `PASS`。
 
 ### T13 权限提示
-1. 菜单 → "权限状态…"：预期两项都显示"未授权"，同时说明主路径不需要这两项权限。
+1. 设置… → 高级与诊断：预期辅助功能、输入监控两项都显示"未授权"，并说明当前功能不需要这两项权限。
 2. 关键结论要靠 T3 和 T1 判断：在两项都未授权时，如果摇晃唤出和热键都能工作，就说明 Phase 0 主路径确实不需要这些权限。如果全局监听不工作而轮询可以，请记录，后续据此决定是否引入 Input Monitoring 引导。
 3. Pawver **不会**主动弹出系统授权请求。
 
 ### T14（可选，最后做，会改变测试文件）移动语义评估
 只有在 T5–T8 的复制测试都通过之后再做。
-1. 菜单中勾选"拖出时允许“移动”（实验）"。
+1. 设置… → 高级与诊断 中打开"拖出时允许“移动”（实验）"。
 2. 从 Shelf 把 `source/B/pixel.png` 拖到 `destination/`。分别试不按修饰键和按住 Command，记录 Finder 选择了复制还是移动。
 3. 如果 Finder 执行了移动：`source/B/pixel.png` 消失（这是 Finder 移动的，不是 Pawver），日志 `operation=move`，`sourceExists=false removeFromShelf=true`，Shelf 中该项被移除。此时 `verify-test-files.sh` **会报告 FAIL，这是预期的**。
 4. 测试完成后取消勾选，并运行 `scripts/make-test-files.sh --force` 重建测试文件。
@@ -253,10 +253,10 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
 1. **核心风险尚未验证**：macOS 27 上，全局鼠标监听在 Finder 拖拽期间是否持续收到事件、拖拽中新出现的面板能否立即成为放置目标，都要靠 T3 证实。
 2. 只有一个 Shelf；关闭即清空（只释放引用）。多 Shelf、最近 Shelf 属于 P1。
 3. 只接受文件 URL（`public.file-url`）；文本、URL、图片和剪贴板属于 P1。
-4. 不能删除单项或重新排序，没有 Quick Look，不能调整尺寸或透明度，没有设置窗口（只有菜单开关）。
+4. 不能删除单项或重新排序，没有 Quick Look，不能调整尺寸或透明度，设置窗口只是早期最小版本。
 5. 拖出默认只提供 copy；move 在实验开关后面，`.generic` 和 `.link` 尚未提供，修饰键的实际效果待 T7 实测。
 6. Shelf 拖回自身返回 `[]`（不构成操作）。
-7. 没有应用图标（Phase 2 用 `sips` + `iconutil` 制作）。菜单栏使用 SF Symbol。
+7. 应用图标已于 2026-10-10 加入（`scripts/make-icon.sh`）。菜单栏使用 SF Symbol。
 8. 轮询引擎空闲时 5 Hz，检测到按下最多延迟约 200 ms。它也会把 Pawver 自身窗口里的点击算作按下，但会被拖拽板判断过滤。
 9. Finder 拖拽板上的 file reference URL（`file:///.file/id=…`）会转换为路径 URL。代码已处理，但真实 Finder 拖拽是否提供这种 URL，需开启详细日志查看 `raw dropped URLs`。
 10. ad-hoc 签名每次构建 cdhash 都会变；只有将来启用需要 TCC 权限的引擎时才有影响，Phase 0 主路径不需要权限。
@@ -293,6 +293,12 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
   3. 再次双击 Pawver.app → 图标恢复；日志 `menu bar icon shown (app reopened)`。
   4. ⌘ 拖出图标 → 日志 `isVisible → false (changed outside our menu ...)`；按 ⌃⌥S，Shelf 右上角 “…” → 显示菜单栏图标 / 退出 Pawver 均可用。
   5. 隐藏状态下退出再启动 → 图标显示；日志 `shown (launch (was hidden in previous session))`。
+
+## 6.3 精简菜单与设置窗口（2026-10-10，待用户验证）
+
+1. 点菜单栏图标：只有 新建 Shelf ⌃⌥S / 设置… ⌘, / 隐藏菜单栏图标 / 退出 Pawver ⌘Q；Shelf 的“…”菜单相同。
+2. 设置… → 窗口出现在前台并可操作；改动各项后关闭再打开，状态保持；日志有 `settings window opened`、`drag detection engine = ...`、`allowMoveOnDragOut = ...` 等。
+3. 设置窗口打开时摇晃唤出 Shelf：Shelf 不抢焦点（设置窗口仍是 key window）。
 
 ## 7. 实际项目结构（Phase 0）
 
