@@ -1,8 +1,22 @@
 # Pawver
 
-> 原名 FloatShelf（2026-10-10 更名；仓库目录仍为 `~/Projects/FloatShelf`）。
+> 原名 FloatShelf（2026-10-10 更名为 Pawver）。
 
 原生 macOS 悬浮文件暂存工具（Swift 6 + AppKit），交互参考 Dropover，独立实现。当前处于 **Phase 0：技术可行性验证**。
+
+## 下载与安装
+
+*English: download `Pawver-<version>-macOS.dmg` (or `.zip`) from [Releases](https://github.com/ginitur/Pawver/releases), drag Pawver.app to Applications; the app is ad-hoc signed and not notarized, so open it via right-click → Open the first time.*
+
+1. 从 [Releases](https://github.com/ginitur/Pawver/releases) 下载 `Pawver-0.1.0-macOS.dmg`（或 `.zip`），可用同页的 `SHA256SUMS.txt` 校验：`shasum -a 256 -c SHA256SUMS.txt`。
+2. 打开 DMG，把 **Pawver.app** 拖到 **Applications（应用程序）**；zip 版解压后同样拖入。
+3. 首次打开会被系统拦截：本应用只做了 ad-hoc 签名，**没有** Apple 开发者证书签名和公证。处理方式：
+   - 在“应用程序”中**右键 Pawver → 打开**，在弹窗里再点“打开”；或
+   - 先双击一次，然后到 **系统设置 → 隐私与安全性**，在底部点 **“仍要打开”**。
+   - 如果提示“已损坏，无法打开”：在终端运行 `xattr -dr com.apple.quarantine /Applications/Pawver.app` 后再打开。
+4. Pawver 没有 Dock 图标，启动后在菜单栏出现 🐾 图标；快捷键 **⌃⌥S** 新建 Shelf。
+
+**系统要求**：macOS 14 Sonoma 或更新版本（`LSMinimumSystemVersion = 14.0`）；通用二进制（Apple Silicon arm64 + Intel x86_64）。目前只在 Apple Silicon、macOS 27 上实测过，Intel 机器未经测试。
 
 ## 构建与运行（只需 Command Line Tools，不需要 Xcode）
 
@@ -10,6 +24,7 @@
 scripts/build.sh        # → dist/Pawver.app（ad-hoc 签名，LSUIElement，无 Dock 图标）
 scripts/run.sh          # 启动，并把日志另写一份到 logs/
 scripts/test.sh         # 单元测试（Swift Testing）
+scripts/package.sh      # 通用二进制 + dist/Pawver-<版本>-macOS.zip/.dmg + SHA256SUMS.txt
 ```
 
 也可以直接在 Finder 中双击 `dist/Pawver.app`。退出：菜单栏图标 → **退出 Pawver**。
