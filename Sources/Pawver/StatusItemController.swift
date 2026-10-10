@@ -82,56 +82,24 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         return mi
     }
 
+    /// Deliberately minimal; everything else lives in the Settings window.
     private func rebuild() {
-        let s = app.settings
         menu.removeAllItems()
-
         let newShelf = item("新建 Shelf", #selector(newShelf), key: "s")
         newShelf.keyEquivalentModifierMask = [.control, .option]
         menu.addItem(newShelf)
-        let hkStatus = NSMenuItem(title: app.hotkeyStatusText, action: nil, keyEquivalent: "")
-        hkStatus.isEnabled = false
-        menu.addItem(hkStatus)
-        menu.addItem(item("重新注册快捷键", #selector(reregisterHotkey)))
         menu.addItem(.separator())
-
-        let engineMenu = NSMenu()
-        engineMenu.addItem(item("全局事件监听（默认）", #selector(selectEngine(_:)), state: s.engine == .globalMonitor, rep: AppSettings.Engine.globalMonitor.rawValue))
-        engineMenu.addItem(item("轮询（对比用，无需权限）", #selector(selectEngine(_:)), state: s.engine == .polling, rep: AppSettings.Engine.polling.rawValue))
-        let engineItem = NSMenuItem(title: "拖拽检测引擎", action: nil, keyEquivalent: "")
-        engineItem.submenu = engineMenu
-        menu.addItem(engineItem)
-
-        let sensMenu = NSMenu()
-        for (title, value) in [("低", ShakeConfig.Sensitivity.low), ("中（默认）", .medium), ("高", .high)] {
-            sensMenu.addItem(item(title, #selector(selectSensitivity(_:)), state: s.sensitivity == value, rep: value.rawValue))
-        }
-        let sensItem = NSMenuItem(title: "摇晃灵敏度", action: nil, keyEquivalent: "")
-        sensItem.submenu = sensMenu
-        menu.addItem(sensItem)
-
-        menu.addItem(item("仅在拖拽板 changeCount 变化时触发（推荐）", #selector(toggleRequireChange), state: s.requireDragPasteboardChange))
-        menu.addItem(item("拖出时允许“移动”（实验，默认关闭）", #selector(toggleAllowMove), state: s.allowMoveOnDragOut))
-        menu.addItem(.separator())
-
-        menu.addItem(item("详细诊断日志", #selector(toggleVerbose), state: s.verbose))
-        menu.addItem(item("记录屏幕信息到日志", #selector(logScreens)))
-        menu.addItem(item("权限状态…", #selector(showPermissions)))
-        if let url = Diag.logFileURL {
-            menu.addItem(item("在 Finder 中显示日志文件", #selector(revealLog), rep: url.path))
-        }
-        menu.addItem(.separator())
-
+        menu.addItem(item("设置…", #selector(openSettings), key: ","))
         if statusItem.isVisible {
             menu.addItem(item("隐藏菜单栏图标", #selector(hideIcon)))
         } else {
             menu.addItem(item("显示菜单栏图标", #selector(showIcon)))
         }
         menu.addItem(.separator())
-
-        let quit = item("退出 Pawver", #selector(quit), key: "q")
-        menu.addItem(quit)
+        menu.addItem(item("退出 Pawver", #selector(quit), key: "q"))
     }
+
+    @objc private func openSettings() { app.openSettings() }
 
     @objc private func hideIcon() {
         setVisible(false, reason: "menu")
@@ -145,55 +113,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func showIcon() { setVisible(true, reason: "menu (shelf …)") }
 
     @objc private func newShelf() { app.openShelf(reason: "menu bar") }
-
-    @objc private func reregisterHotkey() { app.reregisterHotkey(reason: "menu") }
-
-    @objc private func selectEngine(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String, let engine = AppSettings.Engine(rawValue: raw) else { return }
-        app.setEngine(engine)
-    }
-
-    @objc private func selectSensitivity(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String, let value = ShakeConfig.Sensitivity(rawValue: raw) else { return }
-        app.setSensitivity(value)
-    }
-
-    @objc private func toggleRequireChange() {
-        app.settings.requireDragPasteboardChange.toggle()
-        app.applySettings()
-    }
-
-    @objc private func toggleAllowMove() {
-        app.settings.allowMoveOnDragOut.toggle()
-        Diag.notice(.dragout, "allowMoveOnDragOut = \(app.settings.allowMoveOnDragOut)")
-    }
-
-    @objc private func toggleVerbose() {
-        app.settings.verbose.toggle()
-        app.applySettings()
-    }
-
-    @objc private func logScreens() { app.logScreens() }
-
-    @objc private func showPermissions() {
-        let summary = PermissionProbe.summary()
-        Diag.info(.permissions, "user opened permission status: \(summary)")
-        let alert = NSAlert()
-        alert.messageText = "Pawver 权限状态"
-        alert.informativeText = """
-        辅助功能（Accessibility）：\(PermissionProbe.accessibilityTrusted ? "已授权" : "未授权")
-        输入监控（Input Monitoring）：\(PermissionProbe.inputMonitoringGranted ? "已授权" : "未授权")
-
-        Phase 0 的主路径（全局鼠标事件监听 + Carbon 快捷键）按 Apple 文档不需要这两项权限，Pawver 也不会主动请求。若摇晃在拖拽中没有反应，请先查看日志中是否出现 “global monitor received its first leftMouseDragged”，再尝试切换到“轮询”引擎对比。
-        """
-        NSApp.activate()
-        alert.runModal()
-    }
-
-    @objc private func revealLog(_ sender: NSMenuItem) {
-        guard let path = sender.representedObject as? String else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-    }
 
     @objc private func quit() {
         Diag.notice(.app, "quit requested from menu")
