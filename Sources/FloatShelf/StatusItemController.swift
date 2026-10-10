@@ -45,6 +45,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let newShelf = item("新建 Shelf", #selector(newShelf), key: "s")
         newShelf.keyEquivalentModifierMask = [.control, .option]
         menu.addItem(newShelf)
+        let hkStatus = NSMenuItem(title: app.hotkeyStatusText, action: nil, keyEquivalent: "")
+        hkStatus.isEnabled = false
+        menu.addItem(hkStatus)
+        menu.addItem(item("重新注册快捷键", #selector(reregisterHotkey)))
         menu.addItem(.separator())
 
         let engineMenu = NSMenu()
@@ -79,6 +83,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func newShelf() { app.openShelf(reason: "menu bar") }
+
+    @objc private func reregisterHotkey() { app.reregisterHotkey(reason: "menu") }
 
     @objc private func selectEngine(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let engine = AppSettings.Engine(rawValue: raw) else { return }

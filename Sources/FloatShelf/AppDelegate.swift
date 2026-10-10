@@ -33,9 +33,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkey.onPress = { [weak self] in
             self?.openShelf(reason: "hot key ⌃⌥S")
         }
-        hotkey.register()
+        hotkey.register(reason: "startup")
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
+            let reason = name.rawValue
+            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.reregisterHotkey(reason: reason)
+                }
+            }
+        }
 
         statusController = StatusItemController(app: self)
+
         logScreens()
         Diag.notice(.app, "startup complete: engine=\(settings.engine.rawValue) sensitivity=\(settings.sensitivity.rawValue) requireChange=\(settings.requireDragPasteboardChange) allowMoveOnDragOut=\(settings.allowMoveOnDragOut) verbose=\(settings.verbose)")
 
@@ -56,6 +66,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
     // MARK: Actions
+
+    var hotkeyStatusText: String { hotkey.menuStatusText }
+
+    func reregisterHotkey(reason: String) {
+        hotkey.register(reason: reason)
+    }
 
     func openShelf(reason: String) {
         shelf.show(near: NSEvent.mouseLocation, reason: reason)
