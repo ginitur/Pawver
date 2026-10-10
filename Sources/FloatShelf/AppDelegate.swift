@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: DragEventEngine?
     private var statusController: StatusItemController?
     private let hotkey = HotkeyManager()
+    private var sigtermSource: DispatchSourceSignal?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Diag.verbose = settings.verbose
@@ -46,6 +47,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusController = StatusItemController(app: self)
 
+        // `kill -TERM <pid>` (used by scripts) → normal NSApp.terminate path.
+        signal(SIGTERM, SIG_IGN)
+        let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        src.setEventHandler {
+            MainActor.assumeIsolated {
+                Diag.notice(.app, "SIGTERM received → terminating normally")
+                NSApp.terminate(nil)
+            }
+        }
+        src.resume()
+        sigtermSource = src
         logScreens()
         Diag.notice(.app, "startup complete: engine=\(settings.engine.rawValue) sensitivity=\(settings.sensitivity.rawValue) requireChange=\(settings.requireDragPasteboardChange) allowMoveOnDragOut=\(settings.allowMoveOnDragOut) verbose=\(settings.verbose)")
 
