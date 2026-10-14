@@ -8,7 +8,7 @@
 
 *English: download `Pawver-<version>-macOS.dmg` (or `.zip`) from [Releases](https://github.com/ginitur/Pawver/releases), drag Pawver.app to Applications; the app is ad-hoc signed and not notarized, so open it via right-click → Open the first time.*
 
-1. 从 [Releases](https://github.com/ginitur/Pawver/releases) 下载 `Pawver-0.1.0-macOS.dmg`（或 `.zip`），可用同页的 `SHA256SUMS.txt` 校验：`shasum -a 256 -c SHA256SUMS.txt`。
+1. 从 [Releases](https://github.com/ginitur/Pawver/releases) 下载 `Pawver-0.1.1-macOS.dmg`（或 `.zip`），可用同页的 `SHA256SUMS.txt` 校验：`shasum -a 256 -c SHA256SUMS.txt`。
 2. 打开 DMG，把 **Pawver.app** 拖到 **Applications（应用程序）**；zip 版解压后同样拖入。
 3. 首次打开会被系统拦截：本应用只做了 ad-hoc 签名，**没有** Apple 开发者证书签名和公证。处理方式：
    - 在“应用程序”中**右键 Pawver → 打开**，在弹窗里再点“打开”；或
