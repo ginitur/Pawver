@@ -3,7 +3,7 @@ import PawverCore
 
 /// Owns the single Phase 0 shelf: panel, drop handling, item list.
 @MainActor
-final class ShelfController: NSObject, ShelfDropHandling {
+final class ShelfController: NSObject, ShelfDropHandling, ItemRowDelegate {
     static let panelSize = NSSize(width: 280, height: 320)
 
     let dragOut = DragOutController()
@@ -18,6 +18,11 @@ final class ShelfController: NSObject, ShelfDropHandling {
     private let listStack = NSStackView()
     private let emptyState = NSStackView()
     private var shownAtUptime: Double = 0
+    private(set) var selection = ShelfSelection()
+    private var rowsByID: [UUID: ItemRowView] = [:]
+    /// Plain click on an already-selected row: collapse the selection on mouse-up
+    /// (not mouse-down) so the whole selection can still be dragged.
+    private var pendingCollapse: UUID?
     private var lastLogged: [Int: (NSDragOperation, NSDragOperation)] = [:]
 
     override init() {
@@ -83,7 +88,8 @@ final class ShelfController: NSObject, ShelfDropHandling {
         listStack.spacing = 2
         listStack.translatesAutoresizingMaskIntoConstraints = false
 
-        let docView = FlippedView()
+        let docView = ShelfListBackgroundView()
+        docView.onEmptyClick = { [weak self] in self?.clearSelection(reason: "click on empty area") }
         docView.translatesAutoresizingMaskIntoConstraints = false
         docView.addSubview(listStack)
 
@@ -135,10 +141,12 @@ final class ShelfController: NSObject, ShelfDropHandling {
             docView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
             docView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
             docView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+            // Fill the visible list area so clicks below the last row hit docView.
+            docView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor),
             listStack.leadingAnchor.constraint(equalTo: docView.leadingAnchor),
             listStack.trailingAnchor.constraint(equalTo: docView.trailingAnchor),
             listStack.topAnchor.constraint(equalTo: docView.topAnchor),
-            listStack.bottomAnchor.constraint(equalTo: docView.bottomAnchor),
+            listStack.bottomAnchor.constraint(lessThanOrEqualTo: docView.bottomAnchor),
 
             emptyState.centerXAnchor.constraint(equalTo: effectView.centerXAnchor),
             emptyState.centerYAnchor.constraint(equalTo: effectView.centerYAnchor, constant: 10),
@@ -150,18 +158,91 @@ final class ShelfController: NSObject, ShelfDropHandling {
             listStack.removeArrangedSubview(v)
             v.removeFromSuperview()
         }
+        selection.prune(order: order)
+        rowsByID = [:]
         let names = store.displayNames()
         for item in store.items {
             let row = ItemRowView(item: item, displayName: names[item.id] ?? item.name)
             row.dragOut = dragOut
+            row.rowDelegate = self
+            row.isSelected = selection.contains(item.id)
+            rowsByID[item.id] = row
             listStack.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: listStack.widthAnchor).isActive = true
         }
+        updateCountLabel()
         let n = store.count
-        countLabel.stringValue = n == 0 ? "空 Shelf" : "\(n) 个项目"
         emptyState.isHidden = n > 0
         scrollView.isHidden = n == 0
         dragAllHandle.isEnabled = n > 0
+    }
+
+    private var order: [UUID] { store.items.map(\.id) }
+
+    private func updateCountLabel() {
+        let n = store.count
+        let sel = selection.count
+        countLabel.stringValue = n == 0 ? "空 Shelf" : (sel > 0 ? "\(n) 个项目（已选 \(sel)）" : "\(n) 个项目")
+    }
+
+    private func applySelection(reason: String) {
+        for (id, row) in rowsByID { row.isSelected = selection.contains(id) }
+        updateCountLabel()
+        Diag.debug(.shelf, "selection (\(reason)): \(selection.count) of \(store.count)")
+    }
+
+    func clearSelection(reason: String) {
+        pendingCollapse = nil
+        guard !selection.isEmpty else { return }
+        selection.clear()
+        applySelection(reason: reason)
+    }
+
+    // MARK: ItemRowDelegate (selection + multi-item drag)
+
+    func rowMouseDown(_ row: ItemRowView, event: NSEvent) {
+        let id = row.item.id
+        pendingCollapse = nil
+        let flags = event.modifierFlags
+        if flags.contains(.command) {
+            selection.click(id, kind: .toggle, order: order)
+        } else if flags.contains(.shift) {
+            selection.click(id, kind: .extend, order: order)
+        } else if selection.contains(id) {
+            pendingCollapse = id          // decide on mouse-up (click) vs drag
+        } else {
+            selection.click(id, kind: .plain, order: order)
+        }
+        applySelection(reason: "mouseDown flags=\(flags.names)")
+    }
+
+    func rowClicked(_ row: ItemRowView, event: NSEvent) {
+        guard pendingCollapse == row.item.id else { return }
+        pendingCollapse = nil
+        selection.click(row.item.id, kind: .plain, order: order)
+        applySelection(reason: "click on selected row")
+    }
+
+    func rowBeginDrag(_ row: ItemRowView, event: NSEvent) {
+        pendingCollapse = nil
+        let pressed = row.item.id
+        if !selection.contains(pressed) {
+            // e.g. ⌘-press toggled it off, then dragged: drag just it and select it.
+            selection.click(pressed, kind: .plain, order: order)
+            applySelection(reason: "drag of unselected row")
+        }
+        let ids = selection.dragIDs(pressed: pressed, order: order)
+        let byID = Dictionary(uniqueKeysWithValues: store.items.map { ($0.id, $0) })
+        let items = ids.compactMap { byID[$0] }
+        Diag.info(.dragout, "row drag: pressed=\(row.item.name) carrying \(items.count) selected item(s)")
+        dragOut.beginDrag(items: items, from: row, event: event) { [rowsByID] item, index in
+            // Each item starts from its own row's icon so the system can animate the stack.
+            if let r = rowsByID[item.id] {
+                return row.convert(r.dragImageFrame, from: r)
+            }
+            let offset = CGFloat(min(index, 8)) * 4
+            return row.dragImageFrame.offsetBy(dx: offset, dy: -offset)
+        }
     }
 
     // MARK: Show / hide

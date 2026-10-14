@@ -300,6 +300,22 @@ Phase 0 默认只提供 copy。分别做以下三次拖出，每次在**松开�
 2. 设置… → 窗口出现在前台并可操作；改动各项后关闭再打开，状态保持；日志有 `settings window opened`、`drag detection engine = ...`、`allowMoveOnDragOut = ...` 等。
 3. 设置窗口打开时摇晃唤出 Shelf：Shelf 不抢焦点（设置窗口仍是 key window）。
 
+## 6.4 ⌘ 多选与多项拖出（2026-10-14，待用户验证）
+
+准备：`scripts/make-test-files.sh`，把 TestFixtures/source 里 4 个以上文件拖进 Shelf；目的地用 TestFixtures/destination。
+
+1. 单击第 2 项：只有它高亮（系统强调色），标题显示“（已选 1）”。
+2. ⌘-单击第 4 项、第 1 项：三项高亮；再 ⌘-单击第 4 项：取消它。⌘-单击过程中松开鼠标前不要移动，Shelf 不应开始拖动。
+3. 单击第 1 项，再 ⇧-单击第 3 项：第 1–3 项高亮。
+4. 点列表下方空白处：全部取消选择。
+5. 选中 3 项，按住其中任意一项拖到 Finder 的 destination：拖动时显示叠放图标和数量角标 3；松开后 3 个文件都被复制，日志 `drag-out session #… began with 3 item(s)`、`operation=copy`，每个文件一行 `sourceExists=true removeFromShelf=false`，Shelf 内容不变。
+6. 保持选择，拖一个**未选中**的项：只拖出这一项，并且它变成唯一选中项。
+7. Esc 取消一次多项拖动：Shelf 内容和选择不变，源文件完好。
+8. 浅色/深色模式下高亮都清晰。Shelf 显示期间其他应用的键盘焦点不受影响。
+9. `scripts/verify-test-files.sh` 确认源文件完好。
+
+已知：⌘A 全选未实现（Shelf 面板不会成为 key window，收不到按键，这是有意的设计）；在列表空白处按住拖动不再能移动 Shelf 窗口（标题区仍可拖动）。
+
 ## 7. 实际项目结构（Phase 0）
 
 ```

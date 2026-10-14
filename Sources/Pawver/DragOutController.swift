@@ -24,7 +24,10 @@ final class DragOutController: NSObject, NSDraggingSource {
         allowMove() ? [.copy, .move] : [.copy]
     }
 
-    func beginDrag(items: [ShelfItem], from view: NSView, event: NSEvent, imageFrame: NSRect) {
+    /// Starts ONE session with one NSDraggingItem per item. `frameFor` returns each
+    /// item's starting drag frame in `view`'s coordinates (index = position in `items`
+    /// after skipping missing files).
+    func beginDrag(items: [ShelfItem], from view: NSView, event: NSEvent, frameFor: (ShelfItem, Int) -> NSRect) {
         let fm = FileManager.default
         let existing = items.filter { fm.fileExists(atPath: $0.url.path) }
         let missing = items.count - existing.count
@@ -37,8 +40,7 @@ final class DragOutController: NSObject, NSDraggingSource {
             let di = NSDraggingItem(pasteboardWriter: item.url as NSURL)
             let icon = NSWorkspace.shared.icon(forFile: item.url.path)
             icon.size = NSSize(width: 32, height: 32)
-            let offset = CGFloat(min(index, 8)) * 4
-            di.setDraggingFrame(imageFrame.offsetBy(dx: offset, dy: -offset), contents: icon)
+            di.setDraggingFrame(frameFor(item, index), contents: icon)
             return di
         }
         let session = view.beginDraggingSession(with: dragItems, event: event, source: self)
